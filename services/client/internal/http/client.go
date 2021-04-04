@@ -8,6 +8,6 @@ import (
 // NewClient creates and returns a new HTTP client.
 func NewClient() *http.Client {
 	return &http.Client{
-		Timeout: 1 * time.Second,
+		Timeout: 10 * time.Second,
 	}
 }
