@@ -1,7 +1,17 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/bfoody/Walmart-Scraper/logging"
+)
 
 func main() {
-	fmt.Println("Hello world")
+	// Initialize logging.
+	log, err := logging.Configure()
+	if err != nil {
+		fmt.Println("Error initializing logging: ", err)
+	}
+
+	log.Info("Hello world")
 }
