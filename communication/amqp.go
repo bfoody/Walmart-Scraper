@@ -2,6 +2,7 @@ package communication
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/streadway/amqp"
 )
@@ -30,7 +31,7 @@ func ConnectAMQP(url string) (*Connection, error) {
 	}, nil
 }
 
-// Subscribe subscribes to a queue.
+// Subscribe subscribes to a queue, returning a channel of Messages.
 func (c *Connection) Subscribe(queue string) (chan Message, error) {
 	ch, err := c.conn.Channel()
 	if err != nil {
@@ -39,12 +40,23 @@ func (c *Connection) Subscribe(queue string) (chan Message, error) {
 
 	channel := make(chan Message, 2)
 
-	in, err := ch.Consume(queue, "", true, false, false, false, false, nil)
+	in, err := ch.Consume(queue, "", true, false, false, false, nil)
+	if err != nil {
+		return nil, err
+	}
 
 	go func() {
 		for message := range in {
 			body := string(message.Body)
 
+			var msg Message
+			err := json.NewDecoder(strings.NewReader(body)).Decode(&msg)
+			if err != nil {
+				// TODO: Find a better way to deal with this error.
+				continue
+			}
+
+			channel <- msg
 		}
 	}()
 
