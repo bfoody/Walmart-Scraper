@@ -5,7 +5,8 @@ import (
 
 	"github.com/bfoody/Walmart-Scraper/communication"
 	"github.com/bfoody/Walmart-Scraper/logging"
-	"go.uber.org/zap"
+	"github.com/bfoody/Walmart-Scraper/services/hub/internal/supervisor"
+	"github.com/bfoody/Walmart-Scraper/utils/uuid"
 )
 
 func main() {
@@ -15,7 +16,7 @@ func main() {
 		fmt.Println("Error initializing logging: ", err)
 	}
 
-	log.Info("Hello world")
+	id := uuid.Generate()
 
 	conn, err := communication.ConnectAMQP("amqp://localhost:5672")
 	if err != nil {
@@ -26,8 +27,10 @@ func main() {
 
 	q := "test"
 
+	supervisor := supervisor.New(log)
+
 	e.RegisterStatusUpdateHandler(func(su *communication.StatusUpdate) {
-		log.Info("status update received", zap.String("statusUpdate", fmt.Sprintf("%+v", su)))
+		supervisor.PipeStatusUpdate(*su)
 	})
 
 	err = e.Consume(q)
@@ -35,6 +38,18 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
+	err = supervisor.Start()
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	log.Info(fmt.Sprintf("hello world! hub initialized successfully as hub %s", id))
+
 	forever := make(chan bool)
 	<-forever
+
+	err = supervisor.Shutdown()
+	if err != nil {
+		log.Fatal(err.Error())
+	}
 }
