@@ -21,16 +21,15 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
-	e := communication.NewQueueConnection(conn)
-
 	q := "test"
+	e := communication.NewQueueConnection(conn, q)
 
-	err = e.Consume(q)
+	err = e.Consume()
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
-	e.SendMessage(q, communication.StatusUpdate{
+	e.SendMessage(communication.StatusUpdate{
 		FanoutPacket:     communication.FanoutPacket{SenderID: "server1"},
 		AvailableForWork: true,
 	})

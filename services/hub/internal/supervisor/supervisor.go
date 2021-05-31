@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/bfoody/Walmart-Scraper/communication"
+	"github.com/bfoody/Walmart-Scraper/identity"
 	"github.com/bfoody/Walmart-Scraper/services/hub"
 	"go.uber.org/zap"
 )
@@ -20,6 +21,7 @@ type ServerMap map[string]ServerStatus
 // A Supervisor maintains a list of currently connected servers and their
 // statuses.
 type Supervisor struct {
+	identity       *identity.Server
 	conn           *communication.QueueConnection
 	serverMapMutex *sync.RWMutex
 	serverMap      map[string]ServerStatus
@@ -30,11 +32,13 @@ type Supervisor struct {
 }
 
 // New creates and returns a new *Supervisor.
-func New(logger *zap.Logger, conn *communication.QueueConnection) *Supervisor {
+func New(identity *identity.Server, logger *zap.Logger, conn *communication.QueueConnection) *Supervisor {
 	return &Supervisor{
+		identity:       identity,
 		conn:           conn,
 		serverMapMutex: &sync.RWMutex{},
 		serverMap:      map[string]ServerStatus{},
+		heartbeaters:   map[string]*hub.Heartbeater{},
 		statusUpdates:  make(chan communication.StatusUpdate, 4),
 		shutdown:       make(chan int),
 		log:            logger,
@@ -85,6 +89,7 @@ func (s *Supervisor) cleanup() {
 }
 
 func (s *Supervisor) handleStatusUpdate(su *communication.StatusUpdate) {
+	server := identity.NewClient(su.SenderID)
 	status := ServerStatus{
 		AvailableForWork: su.AvailableForWork,
 	}
@@ -98,7 +103,7 @@ func (s *Supervisor) handleStatusUpdate(su *communication.StatusUpdate) {
 	}
 
 	if _, ok := s.serverMap[su.SenderID]; !ok {
-		s.heartbeaters[su.SenderID] = hub.NewHeartbeater(su.SenderID, HeartbeatInterval, s.conn, s.queueName)
+		s.heartbeaters[server.ID] = hub.NewHeartbeater(s.identity, server, HeartbeatInterval, s.conn, s.log)
 		if err := s.heartbeaters[su.SenderID].Start(); err != nil {
 			s.log.Error(
 				fmt.Sprintf("error occurred starting heartbeater for server %s", su.SenderID),

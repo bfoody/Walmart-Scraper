@@ -8,20 +8,22 @@ import (
 // A QueueConnection wraps an AMQP connection and allows for event handlers to be registered.
 type QueueConnection struct {
 	conn                *Connection
+	queueName           string
 	heartbeatHandler    func(heartbeat *Heartbeat)
 	statusUpdateHandler func(statusUpdate *StatusUpdate)
 }
 
 // NewQueueConnection creates and returns a new QueueConnection.
-func NewQueueConnection(conn *Connection) *QueueConnection {
+func NewQueueConnection(conn *Connection, queueName string) *QueueConnection {
 	return &QueueConnection{
-		conn: conn,
+		conn:      conn,
+		queueName: queueName,
 	}
 }
 
 // Consume starts consuming from the AMQP channel.
-func (q *QueueConnection) Consume(queue string) error {
-	channel, err := q.conn.Subscribe(queue)
+func (q *QueueConnection) Consume() error {
+	channel, err := q.conn.Subscribe(q.queueName)
 	if err != nil {
 		return err
 	}
@@ -65,12 +67,12 @@ func (q *QueueConnection) RegisterStatusUpdateHandler(handler func(statusUpdate 
 	q.statusUpdateHandler = handler
 }
 
-func (q *QueueConnection) SendMessage(queue string, message interface{}) error {
+func (q *QueueConnection) SendMessage(message interface{}) error {
 	switch message.(type) {
 	case Heartbeat:
-		return q.conn.Send(queue, "heartbeat", message)
+		return q.conn.Send(q.queueName, "heartbeat", message)
 	case StatusUpdate:
-		return q.conn.Send(queue, "statusUpdate", message)
+		return q.conn.Send(q.queueName, "statusUpdate", message)
 	}
 
 	panic("invalid message type")
