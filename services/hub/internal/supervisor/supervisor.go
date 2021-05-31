@@ -4,10 +4,15 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
+	"time"
 
 	"github.com/bfoody/Walmart-Scraper/communication"
+	"github.com/bfoody/Walmart-Scraper/services/hub"
 	"go.uber.org/zap"
 )
+
+// HeartbeatInterval is the amount of time between each heartbeat.
+const HeartbeatInterval = 5 * time.Second
 
 // A ServerMap stores a list of servers and their statuses.
 type ServerMap map[string]ServerStatus
@@ -15,16 +20,19 @@ type ServerMap map[string]ServerStatus
 // A Supervisor maintains a list of currently connected servers and their
 // statuses.
 type Supervisor struct {
+	conn           *communication.QueueConnection
 	serverMapMutex *sync.RWMutex
 	serverMap      map[string]ServerStatus
+	heartbeaters   map[string]*hub.Heartbeater
 	statusUpdates  chan communication.StatusUpdate
 	shutdown       chan int
 	log            *zap.Logger
 }
 
 // New creates and returns a new *Supervisor.
-func New(logger *zap.Logger) *Supervisor {
+func New(logger *zap.Logger, conn *communication.QueueConnection) *Supervisor {
 	return &Supervisor{
+		conn:           conn,
 		serverMapMutex: &sync.RWMutex{},
 		serverMap:      map[string]ServerStatus{},
 		statusUpdates:  make(chan communication.StatusUpdate, 4),
@@ -35,6 +43,8 @@ func New(logger *zap.Logger) *Supervisor {
 
 // Start starts the Supervisor.
 func (s *Supervisor) Start() error {
+	s.conn.RegisterStatusUpdateHandler(s.pipeStatusUpdate)
+
 	go s.loop()
 	return nil
 }
@@ -45,9 +55,9 @@ func (s *Supervisor) Shutdown() error {
 	return nil
 }
 
-// PipeStatusUpdate pipes a StatusUpdate into the supervisor.
-func (s *Supervisor) PipeStatusUpdate(su communication.StatusUpdate) {
-	s.statusUpdates <- su
+// pipeStatusUpdate pipes a StatusUpdate into the supervisor.
+func (s *Supervisor) pipeStatusUpdate(su *communication.StatusUpdate) {
+	s.statusUpdates <- *su
 }
 
 func (s *Supervisor) loop() {
@@ -56,7 +66,20 @@ func (s *Supervisor) loop() {
 		case su := <-s.statusUpdates:
 			s.handleStatusUpdate(&su)
 		case <-s.shutdown:
+			s.cleanup()
 			return
+		}
+	}
+}
+
+// cleanup gracefully shuts down the Supervisor.
+func (s *Supervisor) cleanup() {
+	for id, hb := range s.heartbeaters {
+		if hb != nil {
+			err := hb.Shutdown()
+			if err != nil {
+				s.log.Error(fmt.Sprintf("error occurred while shutting down heartbeater for server %s", id), zap.Error(err))
+			}
 		}
 	}
 }
@@ -72,6 +95,16 @@ func (s *Supervisor) handleStatusUpdate(su *communication.StatusUpdate) {
 			fmt.Sprintf("status changed for server %s", su.SenderID),
 			zap.String("status", fmt.Sprintf("%+v", status)),
 		)
+	}
+
+	if _, ok := s.serverMap[su.SenderID]; !ok {
+		s.heartbeaters[su.SenderID] = hub.NewHeartbeater(su.SenderID, HeartbeatInterval, s.conn, s.queueName)
+		if err := s.heartbeaters[su.SenderID].Start(); err != nil {
+			s.log.Error(
+				fmt.Sprintf("error occurred starting heartbeater for server %s", su.SenderID),
+				zap.Error(err),
+			)
+		}
 	}
 
 	// Replace the status with the new one.
