@@ -27,6 +27,7 @@ type Supervisor struct {
 	serverMap      map[string]ServerStatus
 	heartbeaters   map[string]*hub.Heartbeater
 	statusUpdates  chan communication.StatusUpdate
+	heartbeats     chan communication.Heartbeat
 	shutdown       chan int
 	log            *zap.Logger
 }
@@ -40,6 +41,7 @@ func New(identity *identity.Server, logger *zap.Logger, conn *communication.Queu
 		serverMap:      map[string]ServerStatus{},
 		heartbeaters:   map[string]*hub.Heartbeater{},
 		statusUpdates:  make(chan communication.StatusUpdate, 4),
+		heartbeats:     make(chan communication.Heartbeat, 4),
 		shutdown:       make(chan int),
 		log:            logger,
 	}
@@ -64,11 +66,18 @@ func (s *Supervisor) pipeStatusUpdate(su *communication.StatusUpdate) {
 	s.statusUpdates <- *su
 }
 
+// pipeHeartbeat pipes a Heartbeat into the supervisor.
+func (s *Supervisor) pipeHeartbeat(hb *communication.Heartbeat) {
+	s.heartbeats <- *hb
+}
+
 func (s *Supervisor) loop() {
 	for {
 		select {
 		case su := <-s.statusUpdates:
 			s.handleStatusUpdate(&su)
+		case hb := <-s.heartbeats:
+			s.handleHeartbeat(&hb)
 		case <-s.shutdown:
 			s.cleanup()
 			return
@@ -114,4 +123,15 @@ func (s *Supervisor) handleStatusUpdate(su *communication.StatusUpdate) {
 
 	// Replace the status with the new one.
 	s.serverMap[su.SenderID] = status
+}
+
+func (s *Supervisor) handleHeartbeat(hb *communication.Heartbeat) {
+	server := identity.NewClient(hb.SenderID)
+	h, ok := s.heartbeaters[server.ID]
+	if !ok {
+		s.log.Error(fmt.Sprintf("server %s missing heartbeater, this shouldn't happen", server.ID))
+		return
+	}
+
+	h.HandleHeartbeat(hb)
 }

@@ -9,28 +9,36 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	// MissedBeatsAllowed represents the number of missed beats allowed before the
+	// client will be considered unresponsive and disconnected.
+	MissedBeatsAllowed = 4
+)
+
 // A Heartbeater maintains a connection to a server and sends heartbeats,
 // reporting back on server failure.
 type Heartbeater struct {
-	sender   *identity.Server // the server sending heartbeats
-	receiver *identity.Server // the server receiving heartbeats
-	interval time.Duration    // the interval between heartbeats
-	conn     *communication.QueueConnection
-	shutdown chan int
-	timer    *time.Timer
-	log      *zap.Logger
+	sender      *identity.Server // the server sending heartbeats
+	receiver    *identity.Server // the server receiving heartbeats
+	interval    time.Duration    // the interval between heartbeats
+	conn        *communication.QueueConnection
+	shutdown    chan int
+	timer       *time.Timer
+	log         *zap.Logger
+	beatsMissed uint8 // the number of heartbeats missed
 }
 
 // NewHeartbeater creates and returns a new *Heartbeater.
 func NewHeartbeater(sender *identity.Server, receiver *identity.Server, interval time.Duration, conn *communication.QueueConnection, logger *zap.Logger) *Heartbeater {
 	return &Heartbeater{
-		sender:   sender,
-		receiver: receiver,
-		interval: interval,
-		conn:     conn,
-		shutdown: make(chan int),
-		timer:    nil,
-		log:      logger,
+		sender:      sender,
+		receiver:    receiver,
+		interval:    interval,
+		conn:        conn,
+		shutdown:    make(chan int),
+		timer:       nil,
+		log:         logger,
+		beatsMissed: 0,
 	}
 }
 
@@ -53,7 +61,7 @@ func (h *Heartbeater) loop() {
 	for {
 		select {
 		case <-h.timer.C:
-			h.sendHeartbeat()
+			h.sendHeartbeat(true)
 			// Restart the timer.
 			h.timer.Reset(h.interval)
 		case <-h.shutdown:
@@ -65,13 +73,13 @@ func (h *Heartbeater) loop() {
 }
 
 // sendHeartbeat sends the heartbeat message to the server.
-func (h *Heartbeater) sendHeartbeat() {
+func (h *Heartbeater) sendHeartbeat(responseExpected bool) {
 	message := communication.Heartbeat{
 		SingleReceiverPacket: communication.SingleReceiverPacket{
 			SenderID:   h.sender.ID,
 			ReceiverID: h.receiver.ID,
 		},
-		ResponseExpected: true,
+		ResponseExpected: responseExpected,
 	}
 
 	if err := h.conn.SendMessage(message); err != nil {
@@ -79,5 +87,14 @@ func (h *Heartbeater) sendHeartbeat() {
 		return
 	}
 
+	if responseExpected {
+		h.beatsMissed++
+	}
+
 	h.log.Debug(fmt.Sprintf("sending heartbeat to server %s", h.receiver.ID))
+}
+
+// HandleHeartbeat handles the receipt of a Heartbeat from the client server.
+func (h *Heartbeater) HandleHeartbeat(hb *communication.Heartbeat) {
+	h.beatsMissed = 0
 }
