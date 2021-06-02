@@ -13,7 +13,7 @@ import (
 )
 
 // HeartbeatInterval is the amount of time between each heartbeat.
-const HeartbeatInterval = 5 * time.Second
+const HeartbeatInterval = 3 * time.Second
 
 // A ServerMap stores a list of servers and their statuses.
 type ServerMap map[string]ServerStatus
@@ -28,20 +28,22 @@ type Supervisor struct {
 	heartbeaters   map[string]*hub.Heartbeater
 	statusUpdates  chan communication.StatusUpdate
 	heartbeats     chan communication.Heartbeat
+	serverDown     chan identity.Server // any servers sent through this channel will be considered offline
 	shutdown       chan int
 	log            *zap.Logger
 }
 
 // New creates and returns a new *Supervisor.
-func New(identity *identity.Server, logger *zap.Logger, conn *communication.QueueConnection) *Supervisor {
+func New(_identity *identity.Server, logger *zap.Logger, conn *communication.QueueConnection) *Supervisor {
 	return &Supervisor{
-		identity:       identity,
+		identity:       _identity,
 		conn:           conn,
 		serverMapMutex: &sync.RWMutex{},
 		serverMap:      map[string]ServerStatus{},
 		heartbeaters:   map[string]*hub.Heartbeater{},
 		statusUpdates:  make(chan communication.StatusUpdate, 4),
 		heartbeats:     make(chan communication.Heartbeat, 4),
+		serverDown:     make(chan identity.Server, 4),
 		shutdown:       make(chan int),
 		log:            logger,
 	}
@@ -78,6 +80,8 @@ func (s *Supervisor) loop() {
 			s.handleStatusUpdate(&su)
 		case hb := <-s.heartbeats:
 			s.handleHeartbeat(&hb)
+		case server := <-s.serverDown:
+			s.terminateServer(&server)
 		case <-s.shutdown:
 			s.cleanup()
 			return
@@ -112,7 +116,7 @@ func (s *Supervisor) handleStatusUpdate(su *communication.StatusUpdate) {
 	}
 
 	if _, ok := s.serverMap[su.SenderID]; !ok {
-		s.heartbeaters[server.ID] = hub.NewHeartbeater(s.identity, server, HeartbeatInterval, s.conn, s.log)
+		s.heartbeaters[server.ID] = hub.NewHeartbeater(s.identity, server, HeartbeatInterval, s.serverDown, s.conn, s.log)
 		if err := s.heartbeaters[su.SenderID].Start(); err != nil {
 			s.log.Error(
 				fmt.Sprintf("error occurred starting heartbeater for server %s", su.SenderID),
@@ -134,4 +138,17 @@ func (s *Supervisor) handleHeartbeat(hb *communication.Heartbeat) {
 	}
 
 	h.HandleHeartbeat(hb)
+}
+
+// terminateServer removes a single server from the supervisor and shuts down all listeners
+// attached to it.
+func (s *Supervisor) terminateServer(server *identity.Server) {
+	s.log.Info(fmt.Sprintf("terminating server %s", server.ID))
+
+	err := s.heartbeaters[server.ID].Shutdown()
+	if err != nil {
+		s.log.Error(fmt.Sprintf("error occurred while shutting down heartbeater for server %s", server.ID), zap.Error(err))
+	}
+
+	delete(s.serverMap, server.ID)
 }
