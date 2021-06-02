@@ -125,6 +125,9 @@ func (s *Supervisor) handleStatusUpdate(su *communication.StatusUpdate) {
 		}
 	}
 
+	s.serverMapMutex.Lock()
+	defer s.serverMapMutex.Unlock()
+
 	// Replace the status with the new one.
 	s.serverMap[su.SenderID] = status
 }
@@ -143,12 +146,16 @@ func (s *Supervisor) handleHeartbeat(hb *communication.Heartbeat) {
 // terminateServer removes a single server from the supervisor and shuts down all listeners
 // attached to it.
 func (s *Supervisor) terminateServer(server *identity.Server) {
-	s.log.Info(fmt.Sprintf("terminating server %s", server.ID))
+	s.serverMapMutex.Lock()
+	defer s.serverMapMutex.Unlock()
 
+	s.log.Debug(fmt.Sprintf("disconnecting from server %s", server.ID))
 	err := s.heartbeaters[server.ID].Shutdown()
 	if err != nil {
 		s.log.Error(fmt.Sprintf("error occurred while shutting down heartbeater for server %s", server.ID), zap.Error(err))
 	}
 
 	delete(s.serverMap, server.ID)
+
+	s.log.Info(fmt.Sprintf("disconnected from server %s", server.ID))
 }

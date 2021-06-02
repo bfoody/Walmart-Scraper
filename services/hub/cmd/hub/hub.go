@@ -42,7 +42,7 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
-	log.Info(fmt.Sprintf("hello world! hub initialized successfully as hub %s", id))
+	log.Info(fmt.Sprintf("hello world! hub initialized successfully as hub %s", identity.ID))
 
 	// Run forever (until stopped)
 	forever := make(chan bool)

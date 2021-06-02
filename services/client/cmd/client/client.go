@@ -4,7 +4,9 @@ import (
 	"fmt"
 
 	"github.com/bfoody/Walmart-Scraper/communication"
+	"github.com/bfoody/Walmart-Scraper/identity"
 	"github.com/bfoody/Walmart-Scraper/logging"
+	"github.com/bfoody/Walmart-Scraper/utils/uuid"
 )
 
 func main() {
@@ -14,7 +16,10 @@ func main() {
 		fmt.Println("Error initializing logging: ", err)
 	}
 
-	log.Info("Hello world")
+	// TODO: move all this stuff into another function
+
+	id := uuid.Generate()
+	identity := identity.NewClient(id)
 
 	conn, err := communication.ConnectAMQP("amqp://localhost:5672")
 	if err != nil {
@@ -30,9 +35,11 @@ func main() {
 	}
 
 	e.SendMessage(communication.StatusUpdate{
-		FanoutPacket:     communication.FanoutPacket{SenderID: "server1"},
+		FanoutPacket:     communication.FanoutPacket{SenderID: identity.ID},
 		AvailableForWork: true,
 	})
+
+	log.Info(fmt.Sprintf("hello world! client initialized successfully as server %s", identity.ID))
 
 	forever := make(chan bool)
 	<-forever
