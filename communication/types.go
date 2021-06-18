@@ -22,3 +22,14 @@ type StatusUpdate struct {
 	FanoutPacket
 	AvailableForWork bool // whether or not the server can be assigned work yet
 }
+
+// A HubWelcome is sent to a client when the hub registers it.
+type HubWelcome struct {
+	SingleReceiverPacket
+}
+
+// A HubWelcomeAck is sent to the hub from the client to indicate
+// that the receiving hub is now the client's primary hub.
+type HubWelcomeAck struct {
+	SingleReceiverPacket
+}

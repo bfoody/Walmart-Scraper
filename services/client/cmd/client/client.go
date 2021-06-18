@@ -6,6 +6,7 @@ import (
 	"github.com/bfoody/Walmart-Scraper/communication"
 	"github.com/bfoody/Walmart-Scraper/identity"
 	"github.com/bfoody/Walmart-Scraper/logging"
+	"github.com/bfoody/Walmart-Scraper/services/client/internal/receiver"
 	"github.com/bfoody/Walmart-Scraper/utils/uuid"
 )
 
@@ -29,7 +30,14 @@ func main() {
 	q := "test"
 	e := communication.NewQueueConnection(conn, q)
 
+	receiver := receiver.New(identity, log, e)
+
 	err = e.Consume()
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	err = receiver.Start()
 	if err != nil {
 		log.Fatal(err.Error())
 	}
@@ -43,4 +51,9 @@ func main() {
 
 	forever := make(chan bool)
 	<-forever
+
+	err = receiver.Shutdown()
+	if err != nil {
+		log.Fatal(err.Error())
+	}
 }

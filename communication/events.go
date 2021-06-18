@@ -2,15 +2,18 @@ package communication
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 )
 
 // A QueueConnection wraps an AMQP connection and allows for event handlers to be registered.
 type QueueConnection struct {
-	conn                *Connection
-	queueName           string
-	heartbeatHandler    func(heartbeat *Heartbeat)
-	statusUpdateHandler func(statusUpdate *StatusUpdate)
+	conn                 *Connection
+	queueName            string
+	heartbeatHandler     func(heartbeat *Heartbeat)
+	statusUpdateHandler  func(statusUpdate *StatusUpdate)
+	hubWelcomeHandler    func(hubWelcome *HubWelcome)
+	hubWelcomeAckHandler func(hubWelcomeAck *HubWelcomeAck)
 }
 
 // NewQueueConnection creates and returns a new QueueConnection.
@@ -38,10 +41,13 @@ func (q *QueueConnection) consumer(channel chan Message) {
 	for {
 		msg := <-channel
 
+		fmt.Println(msg)
+
 		decoder := json.NewDecoder(strings.NewReader(string(msg.Content)))
 
 		switch msg.Type {
-		case "heatbeat":
+		case "heartbeat":
+			fmt.Println("heartbeat")
 			d := &Heartbeat{}
 			if err := decoder.Decode(d); err == nil && q.heartbeatHandler != nil {
 				q.heartbeatHandler(d)
@@ -53,6 +59,17 @@ func (q *QueueConnection) consumer(channel chan Message) {
 				q.statusUpdateHandler(d)
 			}
 			break
+		case "hubWelcome":
+			d := &HubWelcome{}
+			if err := decoder.Decode(d); err == nil && q.hubWelcomeHandler != nil {
+				q.hubWelcomeHandler(d)
+			}
+			break
+		case "hubWelcomeAck":
+			d := &HubWelcomeAck{}
+			if err := decoder.Decode(d); err == nil && q.hubWelcomeAckHandler != nil {
+				q.hubWelcomeAckHandler(d)
+			}
 		}
 	}
 }
@@ -67,12 +84,34 @@ func (q *QueueConnection) RegisterStatusUpdateHandler(handler func(statusUpdate 
 	q.statusUpdateHandler = handler
 }
 
+// RegisterHubWelcomeHandler registers a handler for HubWelcome messages.
+func (q *QueueConnection) RegisterHubWelcomeHandler(handler func(hubWelcome *HubWelcome)) {
+	q.hubWelcomeHandler = handler
+}
+
+// RegisterHubWelcomeAckHandler registers a handler for HubWelcomeAck messages.
+func (q *QueueConnection) RegisterHubWelcomeAckHandler(handler func(hubWelcomeAck *HubWelcomeAck)) {
+	q.hubWelcomeAckHandler = handler
+}
+
+// SendMessage sends a message of any supported type to the queue,
+// panicking if an invalid type is sent.
 func (q *QueueConnection) SendMessage(message interface{}) error {
+	typeName := ""
+
 	switch message.(type) {
 	case Heartbeat:
-		return q.conn.Send(q.queueName, "heartbeat", message)
+		typeName = "heartbeat"
 	case StatusUpdate:
-		return q.conn.Send(q.queueName, "statusUpdate", message)
+		typeName = "statusUpdate"
+	case HubWelcome:
+		typeName = "hubWelcome"
+	case HubWelcomeAck:
+		typeName = "hubWelcomeAck"
+	}
+
+	if typeName != "" {
+		return q.conn.Send(q.queueName, typeName, message)
 	}
 
 	panic("invalid message type")
