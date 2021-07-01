@@ -33,3 +33,10 @@ type HubWelcome struct {
 type HubWelcomeAck struct {
 	SingleReceiverPacket
 }
+
+// A GoingAway is sent by a client to a hub to let it know that it will
+// be shutting down and to gracefully remove it from its supervisor.
+type GoingAway struct {
+	SingleReceiverPacket
+	Reason string
+}

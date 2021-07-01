@@ -52,6 +52,7 @@ func New(_identity *identity.Server, logger *zap.Logger, conn *communication.Que
 // Start starts the Supervisor.
 func (s *Supervisor) Start() error {
 	s.conn.RegisterStatusUpdateHandler(s.pipeStatusUpdate)
+	s.conn.RegisterHeartbeatHandler(s.pipeHeartbeat)
 
 	go s.loop()
 	return nil
@@ -133,6 +134,10 @@ func (s *Supervisor) handleStatusUpdate(su *communication.StatusUpdate) {
 }
 
 func (s *Supervisor) handleHeartbeat(hb *communication.Heartbeat) {
+	if hb.SenderID == s.identity.ID {
+		return
+	}
+
 	server := identity.NewClient(hb.SenderID)
 	h, ok := s.heartbeaters[server.ID]
 	if !ok {
@@ -141,6 +146,10 @@ func (s *Supervisor) handleHeartbeat(hb *communication.Heartbeat) {
 	}
 
 	h.HandleHeartbeat(hb)
+
+	s.log.Debug(
+		fmt.Sprintf("received heartbeat from server %s", server.ID),
+	)
 }
 
 // terminateServer removes a single server from the supervisor and shuts down all listeners

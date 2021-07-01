@@ -2,6 +2,10 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"os/signal"
+
+	"syscall"
 
 	"github.com/bfoody/Walmart-Scraper/communication"
 	"github.com/bfoody/Walmart-Scraper/identity"
@@ -49,11 +53,19 @@ func main() {
 
 	log.Info(fmt.Sprintf("hello world! client initialized successfully as server %s", identity.ID))
 
+	// Handle graceful shutdowns.
+	s := make(chan os.Signal, 1)
+	signal.Notify(s, os.Interrupt)
+	signal.Notify(s, syscall.SIGTERM)
+	go func() {
+		<-s
+		err = receiver.Shutdown()
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+		os.Exit(0)
+	}()
+
 	forever := make(chan bool)
 	<-forever
-
-	err = receiver.Shutdown()
-	if err != nil {
-		log.Fatal(err.Error())
-	}
 }

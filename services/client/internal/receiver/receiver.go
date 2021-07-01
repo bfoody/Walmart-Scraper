@@ -24,6 +24,7 @@ type Receiver struct {
 func New(_identity *identity.Server, logger *zap.Logger, conn *communication.QueueConnection) *Receiver {
 	return &Receiver{
 		identity:         _identity,
+		heartbeats:       make(chan communication.Heartbeat),
 		newHubIdentities: make(chan identity.Server),
 		hub:              nil,
 		conn:             conn,

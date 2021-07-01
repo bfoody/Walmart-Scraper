@@ -2,7 +2,6 @@ package communication
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 )
 
@@ -41,13 +40,10 @@ func (q *QueueConnection) consumer(channel chan Message) {
 	for {
 		msg := <-channel
 
-		fmt.Println(msg)
-
 		decoder := json.NewDecoder(strings.NewReader(string(msg.Content)))
 
 		switch msg.Type {
 		case "heartbeat":
-			fmt.Println("heartbeat")
 			d := &Heartbeat{}
 			if err := decoder.Decode(d); err == nil && q.heartbeatHandler != nil {
 				q.heartbeatHandler(d)
