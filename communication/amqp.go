@@ -45,14 +45,32 @@ func (c *Connection) Subscribe(queue string) (chan Message, error) {
 		return nil, err
 	}
 
+	err = ch.ExchangeDeclare(
+		"pubsub", // name
+		"fanout", // type
+		true,     // durable
+		false,    // auto-deleted
+		false,    // internal
+		false,    // no-wait
+		nil,      // arguments
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	q, err := ch.QueueDeclare(
-		queue, // name
+		"",    // name
 		false, // durable
 		false, // delete when unused
 		false, // exclusive
 		false, // no-wait
 		nil,   // arguments
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	err = ch.QueueBind(q.Name, "", "pubsub", false, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -89,17 +107,30 @@ func (c *Connection) Send(queue string, messageType string, message interface{})
 		return err
 	}
 
-	q, err := ch.QueueDeclare(
-		queue, // name
-		false, // durable
-		false, // delete when unused
-		false, // exclusive
-		false, // no-wait
-		nil,   // arguments
+	err = ch.ExchangeDeclare(
+		"pubsub", // name
+		"fanout", // type
+		true,     // durable
+		false,    // auto-deleted
+		false,    // internal
+		false,    // no-wait
+		nil,      // arguments
 	)
 	if err != nil {
 		return err
 	}
+
+	// q, err := ch.QueueDeclare(
+	// 	queue, // name
+	// 	false, // durable
+	// 	false, // delete when unused
+	// 	false, // exclusive
+	// 	false, // no-wait
+	// 	nil,   // arguments
+	// )
+	// if err != nil {
+	// 	return err
+	// }
 
 	msg := messageInput{
 		Type:    messageType,
@@ -111,7 +142,7 @@ func (c *Connection) Send(queue string, messageType string, message interface{})
 		return err
 	}
 
-	return ch.Publish("", q.Name, false, false, amqp.Publishing{
+	return ch.Publish("pubsub", "", false, false, amqp.Publishing{
 		ContentType: "application/json",
 		Body:        json,
 	})
