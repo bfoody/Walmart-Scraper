@@ -2,10 +2,16 @@ package receiver
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/bfoody/Walmart-Scraper/communication"
 	"github.com/bfoody/Walmart-Scraper/identity"
 	"go.uber.org/zap"
+)
+
+const (
+	// ReasonShuttingDown signifies that the server is gracefully shutting down.
+	ReasonShuttingDown = "SHUTTING_DOWN"
 )
 
 // A Receiver processes and responds to messages from the hub server.
@@ -17,6 +23,7 @@ type Receiver struct {
 	conn             *communication.QueueConnection
 	hubWelcomes      chan communication.HubWelcome
 	shutdown         chan int
+	shutdownWg       *sync.WaitGroup
 	log              *zap.Logger
 }
 
@@ -25,10 +32,12 @@ func New(_identity *identity.Server, logger *zap.Logger, conn *communication.Que
 	return &Receiver{
 		identity:         _identity,
 		heartbeats:       make(chan communication.Heartbeat),
-		newHubIdentities: make(chan identity.Server),
+		newHubIdentities: make(chan identity.Server, 4),
 		hub:              nil,
 		conn:             conn,
+		hubWelcomes:      make(chan communication.HubWelcome, 4),
 		shutdown:         make(chan int),
+		shutdownWg:       &sync.WaitGroup{},
 		log:              logger,
 	}
 }
@@ -43,8 +52,10 @@ func (r *Receiver) Start() error {
 }
 
 func (r *Receiver) Shutdown() error {
+	r.shutdownWg.Add(1)
 	r.shutdown <- 1
 
+	r.shutdownWg.Wait()
 	return nil
 }
 
@@ -108,5 +119,19 @@ func (r *Receiver) switchHub(hub *identity.Server) {
 // cleanup prepares the Receiver for shutdown and notifies
 // the hub that the client is going away.
 func (r *Receiver) cleanup() {
+	defer r.shutdownWg.Done()
 
+	err := r.conn.SendMessage(communication.GoingAway{
+		SingleReceiverPacket: communication.SingleReceiverPacket{
+			SenderID:   r.identity.ID,
+			ReceiverID: r.hub.ID,
+		},
+		Reason: ReasonShuttingDown,
+	})
+	if err != nil {
+		r.log.Error(
+			fmt.Sprintf("error sending GoingAway to hub %s", r.hub.ID),
+			zap.Error(err),
+		)
+	}
 }

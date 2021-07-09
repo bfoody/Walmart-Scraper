@@ -13,6 +13,7 @@ type QueueConnection struct {
 	statusUpdateHandler  func(statusUpdate *StatusUpdate)
 	hubWelcomeHandler    func(hubWelcome *HubWelcome)
 	hubWelcomeAckHandler func(hubWelcomeAck *HubWelcomeAck)
+	goingAwayHandler     func(goingAway *GoingAway)
 }
 
 // NewQueueConnection creates and returns a new QueueConnection.
@@ -66,6 +67,13 @@ func (q *QueueConnection) consumer(channel chan Message) {
 			if err := decoder.Decode(d); err == nil && q.hubWelcomeAckHandler != nil {
 				q.hubWelcomeAckHandler(d)
 			}
+			break
+		case "goingAway":
+			d := &GoingAway{}
+			if err := decoder.Decode(d); err == nil && q.goingAwayHandler != nil {
+				q.goingAwayHandler(d)
+			}
+			break
 		}
 	}
 }
@@ -90,6 +98,11 @@ func (q *QueueConnection) RegisterHubWelcomeAckHandler(handler func(hubWelcomeAc
 	q.hubWelcomeAckHandler = handler
 }
 
+// RegisterGoingAwayHandler registers a handler for GoingAway messages.
+func (q *QueueConnection) RegisterGoingAwayHandler(handler func(goingAway *GoingAway)) {
+	q.goingAwayHandler = handler
+}
+
 // SendMessage sends a message of any supported type to the queue,
 // panicking if an invalid type is sent.
 func (q *QueueConnection) SendMessage(message interface{}) error {
@@ -104,6 +117,8 @@ func (q *QueueConnection) SendMessage(message interface{}) error {
 		typeName = "hubWelcome"
 	case HubWelcomeAck:
 		typeName = "hubWelcomeAck"
+	case GoingAway:
+		typeName = "goingAway"
 	}
 
 	if typeName != "" {

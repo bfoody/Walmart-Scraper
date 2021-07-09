@@ -28,6 +28,7 @@ type Supervisor struct {
 	heartbeaters   map[string]*hub.Heartbeater
 	statusUpdates  chan communication.StatusUpdate
 	heartbeats     chan communication.Heartbeat
+	goingAways     chan communication.GoingAway
 	serverDown     chan identity.Server // any servers sent through this channel will be considered offline
 	shutdown       chan int
 	log            *zap.Logger
@@ -43,6 +44,7 @@ func New(_identity *identity.Server, logger *zap.Logger, conn *communication.Que
 		heartbeaters:   map[string]*hub.Heartbeater{},
 		statusUpdates:  make(chan communication.StatusUpdate, 4),
 		heartbeats:     make(chan communication.Heartbeat, 4),
+		goingAways:     make(chan communication.GoingAway, 4),
 		serverDown:     make(chan identity.Server, 4),
 		shutdown:       make(chan int),
 		log:            logger,
@@ -53,6 +55,7 @@ func New(_identity *identity.Server, logger *zap.Logger, conn *communication.Que
 func (s *Supervisor) Start() error {
 	s.conn.RegisterStatusUpdateHandler(s.pipeStatusUpdate)
 	s.conn.RegisterHeartbeatHandler(s.pipeHeartbeat)
+	s.conn.RegisterGoingAwayHandler(s.pipeGoingAway)
 
 	go s.loop()
 	return nil
@@ -74,6 +77,11 @@ func (s *Supervisor) pipeHeartbeat(hb *communication.Heartbeat) {
 	s.heartbeats <- *hb
 }
 
+// pipeGoingAway pipes a GoingAway into the supervisor.
+func (s *Supervisor) pipeGoingAway(ga *communication.GoingAway) {
+	s.goingAways <- *ga
+}
+
 func (s *Supervisor) loop() {
 	for {
 		select {
@@ -81,6 +89,8 @@ func (s *Supervisor) loop() {
 			s.handleStatusUpdate(&su)
 		case hb := <-s.heartbeats:
 			s.handleHeartbeat(&hb)
+		case ga := <-s.goingAways:
+			s.handleGoingAway(&ga)
 		case server := <-s.serverDown:
 			s.terminateServer(&server)
 		case <-s.shutdown:
@@ -131,10 +141,23 @@ func (s *Supervisor) handleStatusUpdate(su *communication.StatusUpdate) {
 
 	// Replace the status with the new one.
 	s.serverMap[su.SenderID] = status
+
+	err := s.conn.SendMessage(communication.HubWelcome{
+		SingleReceiverPacket: communication.SingleReceiverPacket{
+			SenderID:   s.identity.ID,
+			ReceiverID: su.SenderID,
+		},
+	})
+	if err != nil {
+		s.log.Error(
+			fmt.Sprintf("error occurred sending HubWelcome to server %s", su.SenderID),
+			zap.Error(err),
+		)
+	}
 }
 
 func (s *Supervisor) handleHeartbeat(hb *communication.Heartbeat) {
-	if hb.SenderID == s.identity.ID {
+	if hb.SenderID == s.identity.ID || hb.ReceiverID != s.identity.ID {
 		return
 	}
 
@@ -150,6 +173,15 @@ func (s *Supervisor) handleHeartbeat(hb *communication.Heartbeat) {
 	s.log.Debug(
 		fmt.Sprintf("received heartbeat from server %s", server.ID),
 	)
+}
+
+func (s *Supervisor) handleGoingAway(ga *communication.GoingAway) {
+	if ga.SenderID == s.identity.ID || ga.ReceiverID != s.identity.ID {
+		return
+	}
+
+	server := identity.NewClient(ga.SenderID)
+	s.serverDown <- *server
 }
 
 // terminateServer removes a single server from the supervisor and shuts down all listeners
