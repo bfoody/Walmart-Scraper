@@ -5,6 +5,7 @@ go 1.15
 require (
 	github.com/antchfx/htmlquery v1.2.3
 	github.com/google/uuid v1.2.0
+	github.com/jmoiron/sqlx v1.3.4 // indirect
 	github.com/streadway/amqp v1.0.0
 	go.uber.org/zap v1.16.0
 	golang.org/x/net v0.0.0-20210226172049-e18ecbb05110 // indirect
