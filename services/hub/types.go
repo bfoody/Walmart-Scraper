@@ -45,9 +45,9 @@ type ProductInfoRepository interface {
 	// FindProductInfoByID finds a single product info by ID, returning an error if nothing is found.
 	FindProductInfoByID(id string) (*domain.ProductInfo, error)
 	// InsertProductInfo inserts a single product into the database, returning the ID on success.
-	InsertProductInfo(product domain.ProductInfo) (string, error)
+	InsertProductInfo(productInfo domain.ProductInfo) (string, error)
 	// UpdateProductInfo updates a single product info in the database by ID.
-	UpdateProductInfo(product domain.ProductInfo) error
+	UpdateProductInfo(productInfo domain.ProductInfo) error
 	// DeleteProductInfo deletes a single product info by ID.
 	DeleteProductInfo(id string) error
 }
