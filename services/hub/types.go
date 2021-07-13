@@ -45,9 +45,34 @@ type ProductInfoRepository interface {
 	// FindProductInfoByID finds a single product info by ID, returning an error if nothing is found.
 	FindProductInfoByID(id string) (*domain.ProductInfo, error)
 	// InsertProductInfo inserts a single product into the database, returning the ID on success.
-	InsertProductInfo(product domain.ProductInfo) (string, error)
+	InsertProductInfo(productInfo domain.ProductInfo) (string, error)
 	// UpdateProductInfo updates a single product info in the database by ID.
-	UpdateProductInfo(product domain.ProductInfo) error
+	UpdateProductInfo(productInfo domain.ProductInfo) error
 	// DeleteProductInfo deletes a single product info by ID.
 	DeleteProductInfo(id string) error
+}
+
+// A ScrapeTaskRepository provides methods for interfacing with ScrapeTasks
+// stored in the database.
+type ScrapeTaskRepository interface {
+	// FindScrapeTaskByID finds a single scrape task by ID, returning an error if nothing is found.
+	FindScrapeTaskByID(id string) (*domain.ScrapeTask, error)
+	// FindUpcomingScrapeTasks returns due tasks closest to the current time, using the supplied
+	// limit.
+	FindUpcomingScrapeTasks(limit uint8) ([]domain.ScrapeTask, error)
+	// FindScrapeTasksByProductLocationID finds scrape tasks by ProductLocationID, returning a
+	// blank array if nothing is found.
+	FindScrapeTasksByProductLocationID(id string) ([]domain.ScrapeTask, error)
+	// FindScrapeTasksByProductID finds scrape tasks by Product ID, returning a
+	// blank array if nothing is found.
+	FindScrapeTasksByProductID(id string) ([]domain.ScrapeTask, error)
+	// FindScrapeTasksByLocationID finds scrape tasks by Location ID, returning a
+	// blank array if nothing is found.
+	FindScrapeTasksByLocationID(id string) ([]domain.ScrapeTask, error)
+	// InsertScrapeTask inserts a single scrape task into the database, returning the ID on success.
+	InsertScrapeTask(scrapeTask domain.ScrapeTask) (string, error)
+	// UpdateScrapeTask updates a single scrape task in the database by ID.
+	UpdateScrapeTask(scrapeTask domain.ScrapeTask) error
+	// DeleteScrapeTask deletes a single scrape task by ID.
+	DeleteScrapeTask(id string) error
 }
