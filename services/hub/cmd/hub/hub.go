@@ -10,8 +10,10 @@ import (
 	"github.com/bfoody/Walmart-Scraper/identity"
 	"github.com/bfoody/Walmart-Scraper/logging"
 	"github.com/bfoody/Walmart-Scraper/services/hub"
+	"github.com/bfoody/Walmart-Scraper/services/hub/internal/database/postgres"
 	"github.com/bfoody/Walmart-Scraper/services/hub/internal/supervisor"
 	"github.com/bfoody/Walmart-Scraper/utils/uuid"
+	"go.uber.org/zap"
 )
 
 func main() {
@@ -23,13 +25,25 @@ func main() {
 
 	config, err := hub.LoadConfig()
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatal("unable to load config", zap.Error(err))
 	}
 
 	// TODO: move all this stuff into another function
 
 	id := uuid.Generate()
 	identity := identity.NewHub(id)
+
+	_, err = postgres.Connect(postgres.ConnOptions{
+		Host:           config.DatabaseURL,
+		Port:           config.DatabasePort,
+		DBName:         config.DatabaseName,
+		Username:       config.DatabaseUsername,
+		Password:       config.DatabasePassword,
+		DisableSSLMode: true,
+	})
+	if err != nil {
+		log.Fatal("error connecting to database", zap.Error(err))
+	}
 
 	conn, err := communication.ConnectAMQP(config.AMQPURL)
 	if err != nil {
