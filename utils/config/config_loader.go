@@ -5,6 +5,8 @@ import (
 	"os"
 	"reflect"
 	"strings"
+
+	"github.com/joho/godotenv"
 )
 
 // A ConfigLoadError is thrown when the environment is missing one or more variables.
@@ -22,6 +24,9 @@ func (c *ConfigLoadError) Error() string {
 //
 // Returns an error if any variables are not found.
 func LoadConfigFromEnv(configStruct interface{}) error {
+	// Load from a .env file if one exists. Ignore errors.
+	godotenv.Load()
+
 	elem := reflect.TypeOf(configStruct).Elem()
 	if elem.Kind() != reflect.Struct {
 		panic("LoadConfigFromEnv must be passed a pointer to a struct")
