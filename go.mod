@@ -6,7 +6,7 @@ require (
 	github.com/antchfx/htmlquery v1.2.3
 	github.com/google/uuid v1.2.0
 	github.com/jmoiron/sqlx v1.3.4
-	github.com/joho/godotenv v1.3.0 // indirect
+	github.com/joho/godotenv v1.3.0
 	github.com/lib/pq v1.2.0
 	github.com/streadway/amqp v1.0.0
 	go.uber.org/zap v1.16.0

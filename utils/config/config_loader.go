@@ -44,8 +44,11 @@ func LoadConfigFromEnv(configStruct interface{}) error {
 
 		envVal := os.Getenv(name)
 		if envVal == "" {
-			missingFields = append(missingFields, name)
-			continue
+			envVal, ok = field.Tag.Lookup("default")
+			if !ok {
+				missingFields = append(missingFields, name)
+				continue
+			}
 		}
 
 		val.Field(i).SetString(envVal)
