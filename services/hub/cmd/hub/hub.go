@@ -10,6 +10,7 @@ import (
 	"github.com/bfoody/Walmart-Scraper/identity"
 	"github.com/bfoody/Walmart-Scraper/logging"
 	"github.com/bfoody/Walmart-Scraper/services/hub"
+	"github.com/bfoody/Walmart-Scraper/services/hub/internal/database"
 	"github.com/bfoody/Walmart-Scraper/services/hub/internal/database/postgres"
 	"github.com/bfoody/Walmart-Scraper/services/hub/internal/supervisor"
 	"github.com/bfoody/Walmart-Scraper/utils/uuid"
@@ -33,7 +34,7 @@ func main() {
 	id := uuid.Generate()
 	identity := identity.NewHub(id)
 
-	_, err = postgres.Connect(postgres.ConnOptions{
+	db, err = postgres.Connect(postgres.ConnOptions{
 		Host:           config.DatabaseURL,
 		Port:           config.DatabasePort,
 		DBName:         config.DatabaseName,
@@ -44,6 +45,11 @@ func main() {
 	if err != nil {
 		log.Fatal("error connecting to database", zap.Error(err))
 	}
+
+	productRepository := database.NewProductRepository(db)
+	productInfoRepository := database.NewProductInfoRepository(db)
+	productLocationRepository := database.NewProductLocationRepository(db)
+	scrapeTaskRepository := database.NewScrapeTaskRepository(db)
 
 	conn, err := communication.ConnectAMQP(config.AMQPURL)
 	if err != nil {
