@@ -26,13 +26,17 @@ func NewHTTPClient() *HTTPClient {
 
 // User agent of Chrome 89 running on macOS 11.3.
 var simulatedHeaders = map[string]string{
-	"User-Agent":       "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_3_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36",
-	"sec-ch-ua":        "\"Google Chrome\";v=\"89\", \"Chromium\";v=\"89\", \";Not A Brand\";v=\"99\"",
-	"sec-ch-ua-mobile": "?0",
-	"sec-fetch-dest":   "document",
-	"sec-fetch-mode":   "navigate",
-	"sec-fetch-site":   "none",
-	"sec-fetch-user":   "?1",
+	"authority":                         "www.walmart.com",
+	"cache-control":                     "max-age=0",
+	"accept":                            "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+	"service-worker-navigation-preload": "true",
+	"User-Agent":                        "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_3_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36",
+	"sec-ch-ua":                         "\"Google Chrome\";v=\"89\", \"Chromium\";v=\"89\", \";Not A Brand\";v=\"99\"",
+	"sec-ch-ua-mobile":                  "?0",
+	"sec-fetch-dest":                    "document",
+	"sec-fetch-mode":                    "navigate",
+	"sec-fetch-site":                    "none",
+	"sec-fetch-user":                    "?1",
 }
 
 // addSimulatedHeaders adds various HTTP headers to a request in order to simulate
