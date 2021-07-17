@@ -5,6 +5,7 @@ import "github.com/bfoody/Walmart-Scraper/utils/config"
 // A Config contains various credentials, etc loaded from environment
 // variables.
 type Config struct {
+	Env              string `env:"SCR_ENV" default:"dev"` // "dev" or "prod"
 	DatabaseURL      string `env:"SCR_DATABASE_URL"`
 	DatabasePort     string `env:"SCR_DATABASE_PORT"`
 	DatabaseName     string `env:"SCR_DATABASE_NAME"`

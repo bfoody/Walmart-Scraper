@@ -10,8 +10,12 @@ import (
 	"github.com/bfoody/Walmart-Scraper/identity"
 	"github.com/bfoody/Walmart-Scraper/logging"
 	"github.com/bfoody/Walmart-Scraper/services/hub"
+	"github.com/bfoody/Walmart-Scraper/services/hub/internal/database"
+	"github.com/bfoody/Walmart-Scraper/services/hub/internal/database/postgres"
+	"github.com/bfoody/Walmart-Scraper/services/hub/internal/service"
 	"github.com/bfoody/Walmart-Scraper/services/hub/internal/supervisor"
 	"github.com/bfoody/Walmart-Scraper/utils/uuid"
+	"go.uber.org/zap"
 )
 
 func main() {
@@ -23,13 +27,32 @@ func main() {
 
 	config, err := hub.LoadConfig()
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatal("unable to load config", zap.Error(err))
 	}
 
 	// TODO: move all this stuff into another function
 
 	id := uuid.Generate()
 	identity := identity.NewHub(id)
+
+	db, err := postgres.Connect(postgres.ConnOptions{
+		Host:           config.DatabaseURL,
+		Port:           config.DatabasePort,
+		DBName:         config.DatabaseName,
+		Username:       config.DatabaseUsername,
+		Password:       config.DatabasePassword,
+		DisableSSLMode: true,
+	})
+	if err != nil {
+		log.Fatal("error connecting to database", zap.Error(err))
+	}
+
+	productRepository := database.NewProductRepository(db)
+	productInfoRepository := database.NewProductInfoRepository(db)
+	productLocationRepository := database.NewProductLocationRepository(db)
+	scrapeTaskRepository := database.NewScrapeTaskRepository(db)
+
+	_ = service.NewService(productRepository, productInfoRepository, productLocationRepository, scrapeTaskRepository)
 
 	conn, err := communication.ConnectAMQP(config.AMQPURL)
 	if err != nil {
