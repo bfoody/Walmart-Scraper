@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 
 	httpConfig "github.com/bfoody/Walmart-Scraper/services/client/internal/http"
 )
@@ -51,6 +52,10 @@ func addSimulatedHeaders(req *http.Request) {
 
 // SetProxy sets the HTTP client's proxy using a URL.
 func (c *HTTPClient) SetProxy(urlStr string) error {
+	if !strings.Contains(urlStr, "://") {
+		urlStr = "http://" + urlStr
+	}
+
 	proxy, err := url.Parse(urlStr)
 	if err != nil {
 		return err
