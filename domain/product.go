@@ -22,7 +22,7 @@ type ProductLocation struct {
 // from the crawl.
 type ProductInfo struct {
 	ID                 string    // the entity's unique ID
-	Timestamp          time.Time // the time at which the info was crawled/logged
+	CreatedAt          time.Time // the time at which the info was crawled/logged
 	ProductID          string    // the product's ID
 	ProductLocationID  string    // the product-location ID
 	Price              float32   // the current price of the item in USD
