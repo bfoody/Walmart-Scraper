@@ -1,5 +1,7 @@
 package communication
 
+import "github.com/bfoody/Walmart-Scraper/domain"
+
 // A SingleReceiverPacket is a message meant to be received by a single client.
 type SingleReceiverPacket struct {
 	SenderID   string
@@ -39,4 +41,11 @@ type HubWelcomeAck struct {
 type GoingAway struct {
 	SingleReceiverPacket
 	Reason string
+}
+
+// An InfoRetrieved is sent by a client after fetching product info for a hub. The `ID` field in the ProductInfo will be blank.
+type InfoRetrieved struct {
+	SingleReceiverPacket
+	TaskID      string
+	ProductInfo domain.ProductInfo
 }
