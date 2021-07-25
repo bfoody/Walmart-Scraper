@@ -23,6 +23,7 @@ type ServerMap map[string]ServerStatus
 type Supervisor struct {
 	identity       *identity.Server
 	conn           *communication.QueueConnection
+	service        hub.Service
 	serverMapMutex *sync.RWMutex
 	serverMap      map[string]ServerStatus
 	heartbeaters   map[string]*hub.Heartbeater
@@ -36,10 +37,11 @@ type Supervisor struct {
 }
 
 // New creates and returns a new *Supervisor.
-func New(_identity *identity.Server, logger *zap.Logger, conn *communication.QueueConnection) *Supervisor {
+func New(_identity *identity.Server, logger *zap.Logger, conn *communication.QueueConnection, service hub.Service) *Supervisor {
 	return &Supervisor{
 		identity:       _identity,
 		conn:           conn,
+		service:        service,
 		serverMapMutex: &sync.RWMutex{},
 		serverMap:      map[string]ServerStatus{},
 		heartbeaters:   map[string]*hub.Heartbeater{},
@@ -99,6 +101,8 @@ func (s *Supervisor) loop() {
 			s.handleHeartbeat(&hb)
 		case ga := <-s.goingAways:
 			s.handleGoingAway(&ga)
+		case ir := <-s.infoRetrieved:
+			s.handleInfoRetrieved(&ir)
 		case server := <-s.serverDown:
 			s.terminateServer(&server)
 		case <-s.shutdown:
@@ -190,6 +194,27 @@ func (s *Supervisor) handleGoingAway(ga *communication.GoingAway) {
 
 	server := identity.NewClient(ga.SenderID)
 	s.serverDown <- *server
+}
+
+func (s *Supervisor) handleInfoRetrieved(ir *communication.InfoRetrieved) {
+	if ir.SenderID == s.identity.ID || ir.ReceiverID != s.identity.ID {
+		return
+	}
+
+	pi := ir.ProductInfo
+
+	id, err := s.service.SaveProductInfo(pi)
+	if err != nil {
+		s.log.Error(fmt.Sprintf("error saving product info for task %s", ir.TaskID), zap.Error(err))
+		return
+	}
+
+	err = s.service.ResolveTask(ir.TaskID)
+	if err != nil {
+		s.log.Error(fmt.Sprintf("error resolving task %s", ir.TaskID), zap.Error(err))
+	}
+
+	s.log.Debug("product info saved for task", zap.String("taskId", ir.TaskID), zap.String("productInfoId", id))
 }
 
 // terminateServer removes a single server from the supervisor and shuts down all listeners

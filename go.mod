@@ -4,10 +4,13 @@ go 1.15
 
 require (
 	github.com/antchfx/htmlquery v1.2.3
+	github.com/golang-migrate/migrate/v4 v4.14.1 // indirect
 	github.com/google/uuid v1.2.0
+	github.com/hashicorp/errwrap v1.1.0 // indirect
+	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/jmoiron/sqlx v1.3.4
 	github.com/joho/godotenv v1.3.0
-	github.com/lib/pq v1.2.0
+	github.com/lib/pq v1.8.0
 	github.com/streadway/amqp v1.0.0
 	go.uber.org/zap v1.16.0
 	golang.org/x/net v0.0.0-20210226172049-e18ecbb05110 // indirect
