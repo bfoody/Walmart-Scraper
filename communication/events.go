@@ -14,6 +14,7 @@ type QueueConnection struct {
 	hubWelcomeHandler    func(hubWelcome *HubWelcome)
 	hubWelcomeAckHandler func(hubWelcomeAck *HubWelcomeAck)
 	goingAwayHandler     func(goingAway *GoingAway)
+	infoRetrievedHandler func(infoRetrieved *InfoRetrieved)
 }
 
 // NewQueueConnection creates and returns a new QueueConnection.
@@ -103,6 +104,11 @@ func (q *QueueConnection) RegisterGoingAwayHandler(handler func(goingAway *Going
 	q.goingAwayHandler = handler
 }
 
+// RegisterInfoRetrievedHandler registers a handler for InfoRetrieved messages.
+func (q *QueueConnection) RegisterInfoRetrievedHandler(handler func(infoRetrieved *InfoRetrieved)) {
+	q.infoRetrievedHandler = handler
+}
+
 // SendMessage sends a message of any supported type to the queue,
 // panicking if an invalid type is sent.
 func (q *QueueConnection) SendMessage(message interface{}) error {
@@ -119,6 +125,8 @@ func (q *QueueConnection) SendMessage(message interface{}) error {
 		typeName = "hubWelcomeAck"
 	case GoingAway:
 		typeName = "goingAway"
+	case InfoRetrieved:
+		typeName = "infoRetrieved"
 	}
 
 	if typeName != "" {

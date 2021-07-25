@@ -29,6 +29,7 @@ type Supervisor struct {
 	statusUpdates  chan communication.StatusUpdate
 	heartbeats     chan communication.Heartbeat
 	goingAways     chan communication.GoingAway
+	infoRetrieved  chan communication.InfoRetrieved
 	serverDown     chan identity.Server // any servers sent through this channel will be considered offline
 	shutdown       chan int
 	log            *zap.Logger
@@ -45,6 +46,7 @@ func New(_identity *identity.Server, logger *zap.Logger, conn *communication.Que
 		statusUpdates:  make(chan communication.StatusUpdate, 4),
 		heartbeats:     make(chan communication.Heartbeat, 4),
 		goingAways:     make(chan communication.GoingAway, 4),
+		infoRetrieved:  make(chan communication.InfoRetrieved, 4),
 		serverDown:     make(chan identity.Server, 4),
 		shutdown:       make(chan int),
 		log:            logger,
@@ -56,6 +58,7 @@ func (s *Supervisor) Start() error {
 	s.conn.RegisterStatusUpdateHandler(s.pipeStatusUpdate)
 	s.conn.RegisterHeartbeatHandler(s.pipeHeartbeat)
 	s.conn.RegisterGoingAwayHandler(s.pipeGoingAway)
+	s.conn.RegisterInfoRetrievedHandler(s.pipeInfoRetrieved)
 
 	go s.loop()
 	return nil
@@ -80,6 +83,11 @@ func (s *Supervisor) pipeHeartbeat(hb *communication.Heartbeat) {
 // pipeGoingAway pipes a GoingAway into the supervisor.
 func (s *Supervisor) pipeGoingAway(ga *communication.GoingAway) {
 	s.goingAways <- *ga
+}
+
+// pipeInfoRetrieved pipes an InfoRetrieved into the supervisor.
+func (s *Supervisor) pipeInfoRetrieved(ir *communication.InfoRetrieved) {
+	s.infoRetrieved <- *ir
 }
 
 func (s *Supervisor) loop() {
