@@ -59,7 +59,7 @@ type ScrapeTaskRepository interface {
 	FindScrapeTaskByID(id string) (*domain.ScrapeTask, error)
 	// FindUpcomingScrapeTasks returns due tasks closest to the current time, using the supplied
 	// limit.
-	FindUpcomingScrapeTasks(limit uint8) ([]domain.ScrapeTask, error)
+	FindUpcomingScrapeTasks(limit uint16) ([]domain.ScrapeTask, error)
 	// FindScrapeTasksByProductLocationID finds scrape tasks by ProductLocationID, returning a
 	// blank array if nothing is found.
 	FindScrapeTasksByProductLocationID(id string) ([]domain.ScrapeTask, error)
@@ -83,4 +83,8 @@ type Service interface {
 	ResolveTask(id string) error
 	// SaveProductInfo saves a new ProductInfo to the database, returning the ID on success.
 	SaveProductInfo(productInfo domain.ProductInfo) (string, error)
+	// CreateTask creates a new task using the provided object.
+	CreateTask(scrapeTask domain.ScrapeTask) (string, error)
+	// FetchUpcomingTasks fetches newest tasks with a limit.
+	FetchUpcomingTasks(limit uint16) ([]domain.ScrapeTask, error)
 }

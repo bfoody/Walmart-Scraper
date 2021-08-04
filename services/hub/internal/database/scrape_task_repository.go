@@ -35,7 +35,7 @@ func (r *ScrapeTaskRepository) FindScrapeTaskByID(id string) (*domain.ScrapeTask
 
 // FindUpcomingScrapeTasks returns due tasks closest to the current time, using the supplied
 // limit.
-func (r *ScrapeTaskRepository) FindUpcomingScrapeTasks(limit uint8) ([]domain.ScrapeTask, error) {
+func (r *ScrapeTaskRepository) FindUpcomingScrapeTasks(limit uint16) ([]domain.ScrapeTask, error) {
 	var scrapeTasks []domain.ScrapeTask
 	err := r.db.Select(&scrapeTasks, fmt.Sprintf("SELECT * FROM scrape_tasks WHERE completed=FALSE ORDER BY scheduled_for LIMIT %d", limit))
 	if err != nil {

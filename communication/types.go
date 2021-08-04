@@ -49,3 +49,10 @@ type InfoRetrieved struct {
 	TaskID      string
 	ProductInfo domain.ProductInfo
 }
+
+// A TaskFTaskFulfillmentRequest is sent by a hub to a client as a request for a task to be executed and fulfilled.
+type TaskFulfillmentRequest struct {
+	SingleReceiverPacket
+	TaskID          string
+	ProductLocation domain.ProductLocation
+}

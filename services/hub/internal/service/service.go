@@ -31,6 +31,16 @@ func NewService(
 	}
 }
 
+// CreateTask creates a new task using the provided object.
+func (s *Service) CreateTask(scrapeTask domain.ScrapeTask) (string, error) {
+	return s.scrapeTaskRepository.InsertScrapeTask(scrapeTask)
+}
+
+// FetchUpcomingTasks fetches newest tasks with a limit.
+func (s *Service) FetchUpcomingTasks(limit uint16) ([]domain.ScrapeTask, error) {
+	return s.scrapeTaskRepository.FindUpcomingScrapeTasks(limit)
+}
+
 // ResolveTask marks the task with the provided ID as completed.
 func (s *Service) ResolveTask(id string) error {
 	st, err := s.scrapeTaskRepository.FindScrapeTaskByID(id)
