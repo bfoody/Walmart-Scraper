@@ -86,8 +86,8 @@ func fakeTaskGenerator(num int) []domain.ScrapeTask {
 
 func TestQueueOrder(t *testing.T) {
 	tm := NewTaskManager(nil)
-	//	tasks := fakeTaskGenerator(5000)
-	tasks := fakeTasks
+	tasks := fakeTaskGenerator(5000)
+	// tasks := fakeTasks
 
 	for i, task := range tasks {
 		// Log every 500 indexes
@@ -99,7 +99,6 @@ func TestQueueOrder(t *testing.T) {
 		tm.sortedEnqueue(task.ID)
 	}
 
-	tm.printListDebug()
 	last := ""
 	for e := tm.queue.Front(); e != nil; e = e.Next() {
 		id := e.Value.(string)

@@ -83,13 +83,13 @@ func (t *TaskManager) sortedEnqueue(id string) {
 	for e := t.queue.Back(); e != nil; e = e.Prev() {
 		currID := e.Value.(string)
 		if t.tasks[id].ScheduledFor.After(t.tasks[currID].ScheduledFor) {
-			t.queue.InsertBefore(id, e)
+			t.queue.InsertAfter(id, e)
 			return
 		}
 	}
 
-	// If nothing found, push in the back.
-	t.queue.PushBack(id)
+	// If nothing found, push in the front.
+	t.queue.PushFront(id)
 }
 
 func (t *TaskManager) printListDebug() {
