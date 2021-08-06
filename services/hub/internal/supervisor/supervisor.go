@@ -34,10 +34,13 @@ type Supervisor struct {
 	serverDown     chan identity.Server // any servers sent through this channel will be considered offline
 	shutdown       chan int
 	log            *zap.Logger
+	taskManager    *TaskManager
 }
 
 // New creates and returns a new *Supervisor.
 func New(_identity *identity.Server, logger *zap.Logger, conn *communication.QueueConnection, service hub.Service) *Supervisor {
+	tm := NewTaskManager(service)
+
 	return &Supervisor{
 		identity:       _identity,
 		conn:           conn,
@@ -52,6 +55,7 @@ func New(_identity *identity.Server, logger *zap.Logger, conn *communication.Que
 		serverDown:     make(chan identity.Server, 4),
 		shutdown:       make(chan int),
 		log:            logger,
+		taskManager:    tm,
 	}
 }
 
@@ -61,6 +65,11 @@ func (s *Supervisor) Start() error {
 	s.conn.RegisterHeartbeatHandler(s.pipeHeartbeat)
 	s.conn.RegisterGoingAwayHandler(s.pipeGoingAway)
 	s.conn.RegisterInfoRetrievedHandler(s.pipeInfoRetrieved)
+
+	err := s.taskManager.Initialize()
+	if err != nil {
+		return err
+	}
 
 	go s.loop()
 	return nil
