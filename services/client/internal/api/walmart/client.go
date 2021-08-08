@@ -97,3 +97,8 @@ func (c *Client) GetItemDetails(itemSlug, itemID string) (*ItemDetails, error) {
 		InStock:            query.Item.Product.BuyBox.Products[0].AvailabilityStatus == "IN_STOCK",
 	}, nil
 }
+
+// GetItemRelatedItems scrapes related items for a specific item, returning an array of items.
+func (c *Client) GetItemRelatedItems(itemID string) ([]ItemDetails, error) {
+	return nil, nil
+}
