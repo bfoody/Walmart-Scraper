@@ -42,6 +42,24 @@ func (t *TaskManager) Initialize() error {
 	return t.fetchTaskList()
 }
 
+// TryPopTask will pop the next task only if it is due, essentially
+// acting as a polling method.
+//
+// The returned boolean will be `true` when a task is ready, and false otherwise.
+func (t *TaskManager) TryPopTask() (*domain.ScrapeTask, bool) {
+	dur, err := t.timeUntilNextDueTask()
+	if err != nil || dur > 0 {
+		return nil, false
+	}
+
+	task, err := t.popTask()
+	if err != nil {
+		return nil, false
+	}
+
+	return task, true
+}
+
 // fetchTaskList pulls new tasks into the TaskManager's queue.
 func (t *TaskManager) fetchTaskList() error {
 	tasks, err := t.service.FetchUpcomingTasks(defaultLimit)
