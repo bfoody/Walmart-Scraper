@@ -20,7 +20,6 @@ type TaskManager struct {
 	service       hub.Service
 	queueMutex    *sync.RWMutex
 	tasks         map[string]domain.ScrapeTask
-	_queue        []string
 	queue         *list.List
 	resolvedTasks map[string]bool
 	callback      func(task domain.ScrapeTask)
@@ -32,7 +31,6 @@ func NewTaskManager(service hub.Service) *TaskManager {
 		service:       service,
 		queueMutex:    &sync.RWMutex{},
 		tasks:         map[string]domain.ScrapeTask{},
-		_queue:        []string{},
 		queue:         list.New(),
 		resolvedTasks: map[string]bool{},
 	}
