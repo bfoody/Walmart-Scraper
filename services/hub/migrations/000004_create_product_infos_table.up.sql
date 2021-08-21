@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS product_infos (
 	id UUID PRIMARY KEY,
-	created_at TIMESTAMP NOT NULL,
+	created_at TIMESTAMPTZ NOT NULL,
 	product_id UUID NOT NULL,
 	product_location_id UUID NOT NULL,
 	price DECIMAL,

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/bfoody/Walmart-Scraper/communication"
+	"github.com/bfoody/Walmart-Scraper/domain"
 	"github.com/bfoody/Walmart-Scraper/identity"
 	"github.com/bfoody/Walmart-Scraper/services/hub"
 	"go.uber.org/zap"
@@ -70,9 +71,15 @@ func (s *Supervisor) Start() error {
 	if err != nil {
 		return err
 	}
+	s.taskManager.Start(s.taskCallback)
 
 	go s.loop()
 	return nil
+}
+
+func (s *Supervisor) taskCallback(task domain.ScrapeTask) {
+	// Debug
+	fmt.Println("task received")
 }
 
 // Shutdown shuts down the Supervisor.

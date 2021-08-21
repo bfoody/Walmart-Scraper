@@ -23,6 +23,7 @@ type TaskManager struct {
 	_queue        []string
 	queue         *list.List
 	resolvedTasks map[string]bool
+	callback      func(task domain.ScrapeTask)
 }
 
 // NewTaskManager creates and returns a new TaskManager.
@@ -40,6 +41,25 @@ func NewTaskManager(service hub.Service) *TaskManager {
 // Initialize starts the task manager and fetches new tasks.
 func (t *TaskManager) Initialize() error {
 	return t.fetchTaskList()
+}
+
+// Start begins the main loop of the TaskManager and delivers tasks to the `callback`
+// function when they are due.
+func (t *TaskManager) Start(callback func(task domain.ScrapeTask)) {
+	t.callback = callback
+
+	go t.loop()
+}
+
+func (t *TaskManager) loop() {
+	for {
+		task, ready := t.TryPopTask()
+		if !ready {
+			continue
+		}
+
+		t.callback(*task)
+	}
 }
 
 // TryPopTask will pop the next task only if it is due, essentially
@@ -66,9 +86,6 @@ func (t *TaskManager) fetchTaskList() error {
 	if err != nil {
 		return err
 	}
-
-	t.queueMutex.Lock()
-	defer t.queueMutex.Unlock()
 
 	for _, task := range tasks {
 		t.pushTaskToQueue(task)

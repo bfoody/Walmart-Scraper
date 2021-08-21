@@ -1,11 +1,11 @@
 CREATE TABLE IF NOT EXISTS scrape_tasks (
 	id UUID PRIMARY KEY,
 	completed BOOLEAN,
-	created_at TIMESTAMP NOT NULL,
-	scheduled_for TIMESTAMP NOT NULL,
+	created_at TIMESTAMPTZ NOT NULL,
+	scheduled_for TIMESTAMPTZ NOT NULL,
 	product_location_id UUID NOT NULL,
 	repeat BOOLEAN,
-	interval INTERVAL,
+	interval BIGINT,
 	CONSTRAINT fk_product_location
 	FOREIGN KEY(product_location_id)
 	REFERENCES product_locations(id)
