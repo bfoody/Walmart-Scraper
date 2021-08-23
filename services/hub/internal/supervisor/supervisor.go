@@ -77,9 +77,14 @@ func (s *Supervisor) Start() error {
 	return nil
 }
 
+// taskCallback is called by the TaskManager when a task is due to be dispatched.
 func (s *Supervisor) taskCallback(task domain.ScrapeTask) {
-	// Debug
-	fmt.Println("task received")
+	s.distributeTask(task)
+}
+
+// distributeTask distributes a task to a client server in a round-robin fashion.
+func (s *Supervisor) distributeTask(task domain.ScrapeTask) {
+
 }
 
 // Shutdown shuts down the Supervisor.
