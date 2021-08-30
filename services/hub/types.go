@@ -87,4 +87,6 @@ type Service interface {
 	CreateTask(scrapeTask domain.ScrapeTask) (string, error)
 	// FetchUpcomingTasks fetches newest tasks with a limit.
 	FetchUpcomingTasks(limit uint16) ([]domain.ScrapeTask, error)
+	// GetProductLocationByID gets a single ProductLocation using the ID.
+	GetProductLocationByID(id string) (*domain.ProductLocation, error)
 }

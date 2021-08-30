@@ -36,6 +36,7 @@ type Supervisor struct {
 	shutdown       chan int
 	log            *zap.Logger
 	taskManager    *TaskManager
+	roundRobin     *RoundRobin
 }
 
 // New creates and returns a new *Supervisor.
@@ -57,6 +58,7 @@ func New(_identity *identity.Server, logger *zap.Logger, conn *communication.Que
 		shutdown:       make(chan int),
 		log:            logger,
 		taskManager:    tm,
+		roundRobin:     NewRoundRobin(),
 	}
 }
 
@@ -84,7 +86,41 @@ func (s *Supervisor) taskCallback(task domain.ScrapeTask) {
 
 // distributeTask distributes a task to a client server in a round-robin fashion.
 func (s *Supervisor) distributeTask(task domain.ScrapeTask) {
+	s.serverMapMutex.RLock()
+	defer s.serverMapMutex.RUnlock()
 
+	// Create an array of server IDs to choose from.
+	serverIDArray := []string{}
+	for id := range s.serverMap {
+		serverIDArray = append(serverIDArray, id)
+	}
+
+	// Get the ID of the server chosen by round-robin.
+	idx := s.roundRobin.Next(uint(len(serverIDArray)))
+	id := serverIDArray[idx]
+
+	go func() {
+		// TODO: handle error
+		pl, err := s.service.GetProductLocationByID(task.ProductLocationID)
+		if err != nil {
+			s.log.Error("Error getting ProductLocation for TaskFulfillmentRequest", zap.String("productLocationID", task.ProductLocationID), zap.Error(err))
+			return
+		}
+
+		req := communication.TaskFulfillmentRequest{
+			SingleReceiverPacket: communication.SingleReceiverPacket{
+				SenderID:   s.identity.ID,
+				ReceiverID: id,
+			},
+			TaskID:          task.ID,
+			ProductLocation: *pl,
+		}
+
+		err = s.conn.SendMessage(req)
+		if err != nil {
+			s.log.Error("Error sending TaskFulfillmentRequest to server", zap.String("serverID", id), zap.Error(err))
+		}
+	}()
 }
 
 // Shutdown shuts down the Supervisor.

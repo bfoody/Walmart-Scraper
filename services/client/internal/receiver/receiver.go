@@ -16,29 +16,31 @@ const (
 
 // A Receiver processes and responds to messages from the hub server.
 type Receiver struct {
-	identity         *identity.Server
-	heartbeats       chan communication.Heartbeat
-	newHubIdentities chan identity.Server
-	hub              *identity.Server // the hub that the client is currently connected to
-	conn             *communication.QueueConnection
-	hubWelcomes      chan communication.HubWelcome
-	shutdown         chan int
-	shutdownWg       *sync.WaitGroup
-	log              *zap.Logger
+	identity                *identity.Server
+	heartbeats              chan communication.Heartbeat
+	newHubIdentities        chan identity.Server
+	hub                     *identity.Server // the hub that the client is currently connected to
+	conn                    *communication.QueueConnection
+	hubWelcomes             chan communication.HubWelcome
+	taskFulfillmentRequests chan communication.TaskFulfillmentRequest
+	shutdown                chan int
+	shutdownWg              *sync.WaitGroup
+	log                     *zap.Logger
 }
 
 // New creates and returns a new *Receiver.
 func New(_identity *identity.Server, logger *zap.Logger, conn *communication.QueueConnection) *Receiver {
 	return &Receiver{
-		identity:         _identity,
-		heartbeats:       make(chan communication.Heartbeat),
-		newHubIdentities: make(chan identity.Server, 4),
-		hub:              nil,
-		conn:             conn,
-		hubWelcomes:      make(chan communication.HubWelcome, 4),
-		shutdown:         make(chan int),
-		shutdownWg:       &sync.WaitGroup{},
-		log:              logger,
+		identity:                _identity,
+		heartbeats:              make(chan communication.Heartbeat),
+		newHubIdentities:        make(chan identity.Server, 4),
+		hub:                     nil,
+		conn:                    conn,
+		hubWelcomes:             make(chan communication.HubWelcome, 4),
+		taskFulfillmentRequests: make(chan communication.TaskFulfillmentRequest, 4),
+		shutdown:                make(chan int),
+		shutdownWg:              &sync.WaitGroup{},
+		log:                     logger,
 	}
 }
 
@@ -46,6 +48,7 @@ func New(_identity *identity.Server, logger *zap.Logger, conn *communication.Que
 func (r *Receiver) Start() error {
 	r.conn.RegisterHubWelcomeHandler(r.pipeHubWelcome)
 	r.conn.RegisterHeartbeatHandler(r.pipeHeartbeat)
+	r.conn.RegisterTaskFulfillmentRequest(r.pipeTaskFulfillmentRequest)
 
 	go r.loop()
 	return nil
@@ -69,6 +72,11 @@ func (r *Receiver) pipeHeartbeat(hb *communication.Heartbeat) {
 	r.heartbeats <- *hb
 }
 
+// pipeTaskFulfillmentRequest pipes a TaskFulfillmentRequest into the receiver.
+func (r *Receiver) pipeTaskFulfillmentRequest(tfr *communication.TaskFulfillmentRequest) {
+	r.taskFulfillmentRequests <- *tfr
+}
+
 func (r *Receiver) loop() {
 	for {
 		select {
@@ -78,6 +86,8 @@ func (r *Receiver) loop() {
 			r.switchHub(&hub)
 		case hb := <-r.heartbeats:
 			r.handleHeartbeat(&hb)
+		case tfr := <-r.taskFulfillmentRequests:
+			r.handleTaskFulfillmentRequest(&tfr)
 		case <-r.shutdown:
 			r.cleanup()
 			return
@@ -108,6 +118,16 @@ func (r *Receiver) handleHeartbeat(hb *communication.Heartbeat) {
 	}
 
 	r.log.Debug(fmt.Sprintf("sending heartbeat to hub %s", hb.SenderID))
+}
+
+func (r *Receiver) handleTaskFulfillmentRequest(tfr *communication.TaskFulfillmentRequest) {
+	// TODO: check receiver ID in a better way
+	if tfr.ReceiverID != r.identity.ID {
+		return
+	}
+
+	// TODO: possibly implement a thread pool for this?
+	go runTask()
 }
 
 // switchHub switches the client to communicate with the specified hub identity.

@@ -41,6 +41,11 @@ func (s *Service) FetchUpcomingTasks(limit uint16) ([]domain.ScrapeTask, error) 
 	return s.scrapeTaskRepository.FindUpcomingScrapeTasks(limit)
 }
 
+// GetProductLocationByID gets a single ProductLocation using the ID.
+func (s *Service) GetProductLocationByID(id string) (*domain.ProductLocation, error) {
+	return s.productLocationRepository.FindProductLocationByID(id)
+}
+
 // ResolveTask marks the task with the provided ID as completed.
 func (s *Service) ResolveTask(id string) error {
 	st, err := s.scrapeTaskRepository.FindScrapeTaskByID(id)

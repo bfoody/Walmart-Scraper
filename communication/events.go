@@ -7,14 +7,15 @@ import (
 
 // A QueueConnection wraps an AMQP connection and allows for event handlers to be registered.
 type QueueConnection struct {
-	conn                 *Connection
-	queueName            string
-	heartbeatHandler     func(heartbeat *Heartbeat)
-	statusUpdateHandler  func(statusUpdate *StatusUpdate)
-	hubWelcomeHandler    func(hubWelcome *HubWelcome)
-	hubWelcomeAckHandler func(hubWelcomeAck *HubWelcomeAck)
-	goingAwayHandler     func(goingAway *GoingAway)
-	infoRetrievedHandler func(infoRetrieved *InfoRetrieved)
+	conn                          *Connection
+	queueName                     string
+	heartbeatHandler              func(heartbeat *Heartbeat)
+	statusUpdateHandler           func(statusUpdate *StatusUpdate)
+	hubWelcomeHandler             func(hubWelcome *HubWelcome)
+	hubWelcomeAckHandler          func(hubWelcomeAck *HubWelcomeAck)
+	goingAwayHandler              func(goingAway *GoingAway)
+	infoRetrievedHandler          func(infoRetrieved *InfoRetrieved)
+	taskFulfillmentRequestHandler func(taskFulfillmentRequest *TaskFulfillmentRequest)
 }
 
 // NewQueueConnection creates and returns a new QueueConnection.
@@ -75,6 +76,12 @@ func (q *QueueConnection) consumer(channel chan Message) {
 				q.goingAwayHandler(d)
 			}
 			break
+		case "taskFulfillmentRequest":
+			d := &TaskFulfillmentRequest{}
+			if err := decoder.Decode(d); err == nil && q.goingAwayHandler != nil {
+				q.taskFulfillmentRequestHandler(d)
+			}
+			break
 		}
 	}
 }
@@ -109,6 +116,11 @@ func (q *QueueConnection) RegisterInfoRetrievedHandler(handler func(infoRetrieve
 	q.infoRetrievedHandler = handler
 }
 
+// RegisterTaskFulfillmentRequest registers a handler for TaskFulfillmentRequest messages.
+func (q *QueueConnection) RegisterTaskFulfillmentRequest(handler func(taskFulfillmentRequest *TaskFulfillmentRequest)) {
+	q.taskFulfillmentRequestHandler = handler
+}
+
 // SendMessage sends a message of any supported type to the queue,
 // panicking if an invalid type is sent.
 func (q *QueueConnection) SendMessage(message interface{}) error {
@@ -127,6 +139,8 @@ func (q *QueueConnection) SendMessage(message interface{}) error {
 		typeName = "goingAway"
 	case InfoRetrieved:
 		typeName = "infoRetrieved"
+	case TaskFulfillmentRequest:
+		typeName = "taskFulfillmentRequest"
 	}
 
 	if typeName != "" {
