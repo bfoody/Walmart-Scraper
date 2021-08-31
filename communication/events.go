@@ -76,9 +76,15 @@ func (q *QueueConnection) consumer(channel chan Message) {
 				q.goingAwayHandler(d)
 			}
 			break
+		case "infoRetrieved":
+			d := &InfoRetrieved{}
+			if err := decoder.Decode(d); err == nil && q.infoRetrievedHandler != nil {
+				q.infoRetrievedHandler(d)
+			}
+			break
 		case "taskFulfillmentRequest":
 			d := &TaskFulfillmentRequest{}
-			if err := decoder.Decode(d); err == nil && q.goingAwayHandler != nil {
+			if err := decoder.Decode(d); err == nil && q.taskFulfillmentRequestHandler != nil {
 				q.taskFulfillmentRequestHandler(d)
 			}
 			break

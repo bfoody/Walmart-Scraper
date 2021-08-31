@@ -21,7 +21,7 @@ func NewProductLocationRepository(db *sqlx.DB) *ProductLocationRepository {
 // FindProductLocationByID finds a single product location by ID, returning an error
 // if nothing is found.
 func (r *ProductLocationRepository) FindProductLocationByID(id string) (*domain.ProductLocation, error) {
-	var productLocation *domain.ProductLocation
+	productLocation := &domain.ProductLocation{}
 	err := r.db.Get(productLocation, "SELECT * FROM product_locations WHERE id=$1", id)
 	if err != nil {
 		return nil, err

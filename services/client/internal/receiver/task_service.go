@@ -60,7 +60,7 @@ func (s *TaskService) FetchProductInfo(productLocation *domain.ProductLocation) 
 		return nil, err
 	}
 
-	pi := itemDetailsToProductInfo(productLocation.ID, *id)
+	pi := itemDetailsToProductInfo(productLocation.ID, productLocation.ProductID, *id)
 
 	return &pi, nil
 }

@@ -47,7 +47,7 @@ func (s *Service) GetProductLocationByID(id string) (*domain.ProductLocation, er
 }
 
 // ResolveTask marks the task with the provided ID as completed.
-func (s *Service) ResolveTask(id string) error {
+func (s *Service) ResolveTask(id string, newCallback func(st domain.ScrapeTask)) error {
 	st, err := s.scrapeTaskRepository.FindScrapeTaskByID(id)
 	if err != nil {
 		return err
@@ -55,7 +55,34 @@ func (s *Service) ResolveTask(id string) error {
 
 	st.Completed = true
 
-	return s.scrapeTaskRepository.UpdateScrapeTask(*st)
+	err = s.scrapeTaskRepository.UpdateScrapeTask(*st)
+	if err != nil {
+		return err
+	}
+
+	// If repeat is disabled, exit without rescheduling.
+	if !st.Repeat {
+		return nil
+	}
+
+	newSt := domain.ScrapeTask{
+		ID:                "",
+		Completed:         false,
+		CreatedAt:         time.Now(),
+		ScheduledFor:      time.Now().Add(st.Interval),
+		ProductLocationID: st.ProductLocationID,
+		Repeat:            st.Repeat,
+		Interval:          st.Interval,
+	}
+
+	_, err = s.scrapeTaskRepository.InsertScrapeTask(newSt)
+	if err != nil {
+		return err
+	}
+
+	newCallback(newSt)
+
+	return nil
 }
 
 // SaveProductInfo saves a new ProductInfo to the database, returning the ID on success.

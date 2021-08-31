@@ -74,7 +74,11 @@ func (c *Client) GetItemDetails(itemSlug, itemID string) (*ItemDetails, error) {
 	}
 
 	// Find the JSON payload inside the script tag with the ID of item.
-	name := htmlquery.FindOne(doc, "//script[@id=\"item\"]")
+	name, err := htmlquery.Query(doc, "//script[@id=\"item\"]")
+	if err != nil {
+		return nil, api.NewAPIError(resp, "failed to find `name` element", "deserialization_error", err)
+	}
+
 	jsonStr := htmlquery.InnerText(name)
 
 	// Decode the JSON value into the struct.

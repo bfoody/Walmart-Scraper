@@ -81,7 +81,13 @@ func (s *Supervisor) Start() error {
 
 // taskCallback is called by the TaskManager when a task is due to be dispatched.
 func (s *Supervisor) taskCallback(task domain.ScrapeTask) {
-	s.distributeTask(task)
+	go func() {
+		for len(s.serverMap) < 1 {
+			time.Sleep(5 * time.Second)
+		}
+
+		go s.distributeTask(task)
+	}()
 }
 
 // distributeTask distributes a task to a client server in a round-robin fashion.
@@ -153,13 +159,13 @@ func (s *Supervisor) loop() {
 	for {
 		select {
 		case su := <-s.statusUpdates:
-			s.handleStatusUpdate(&su)
+			go s.handleStatusUpdate(&su)
 		case hb := <-s.heartbeats:
-			s.handleHeartbeat(&hb)
+			go s.handleHeartbeat(&hb)
 		case ga := <-s.goingAways:
-			s.handleGoingAway(&ga)
+			go s.handleGoingAway(&ga)
 		case ir := <-s.infoRetrieved:
-			s.handleInfoRetrieved(&ir)
+			go s.handleInfoRetrieved(&ir)
 		case server := <-s.serverDown:
 			s.terminateServer(&server)
 		case <-s.shutdown:
@@ -266,7 +272,9 @@ func (s *Supervisor) handleInfoRetrieved(ir *communication.InfoRetrieved) {
 		return
 	}
 
-	err = s.service.ResolveTask(ir.TaskID)
+	err = s.service.ResolveTask(ir.TaskID, func(st domain.ScrapeTask) {
+		s.taskManager.pushTaskToQueue(st)
+	})
 	if err != nil {
 		s.log.Error(fmt.Sprintf("error resolving task %s", ir.TaskID), zap.Error(err))
 	}

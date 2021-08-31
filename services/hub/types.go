@@ -80,7 +80,7 @@ type ScrapeTaskRepository interface {
 // A Service provides abstractions for interacting with product and task data in the database.
 type Service interface {
 	// ResolveTask marks the task with the provided ID as completed.
-	ResolveTask(id string) error
+	ResolveTask(id string, newCallback func(st domain.ScrapeTask)) error
 	// SaveProductInfo saves a new ProductInfo to the database, returning the ID on success.
 	SaveProductInfo(productInfo domain.ProductInfo) (string, error)
 	// CreateTask creates a new task using the provided object.

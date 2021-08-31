@@ -24,7 +24,7 @@ func NewScrapeTaskRepository(db *sqlx.DB) *ScrapeTaskRepository {
 
 // FindScrapeTaskByID finds a single scrape task by ID, returning an error if nothing is found.
 func (r *ScrapeTaskRepository) FindScrapeTaskByID(id string) (*domain.ScrapeTask, error) {
-	var scrapeTask *domain.ScrapeTask
+	scrapeTask := &domain.ScrapeTask{}
 	err := r.db.Get(scrapeTask, "SELECT * FROM scrape_tasks WHERE id=$1 ORDER BY scheduled_for", id)
 	if err != nil {
 		return nil, err

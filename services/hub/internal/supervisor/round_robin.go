@@ -15,6 +15,11 @@ func NewRoundRobin() *RoundRobin {
 // Next generates the next round robin value with the supplied length of objects
 // to choose from.
 func (r *RoundRobin) Next(length uint) uint {
+	// Avoid divide by zero.
+	if length == 0 {
+		return 0
+	}
+
 	i := r.current
 
 	r.current = i + 1%length

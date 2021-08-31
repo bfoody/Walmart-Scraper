@@ -8,11 +8,11 @@ import (
 )
 
 // itemDetailsToProductInfo converts an ItemDetails to a ProductInfo.
-func itemDetailsToProductInfo(productLocationID string, id walmart.ItemDetails) domain.ProductInfo {
+func itemDetailsToProductInfo(productLocationID string, productID string, id walmart.ItemDetails) domain.ProductInfo {
 	return domain.ProductInfo{
 		ID:                 "",         // will be filled in by database service
 		CreatedAt:          time.Now(), // will be filled in by database service
-		ProductID:          id.ID,
+		ProductID:          productID,
 		ProductLocationID:  productLocationID,
 		Price:              id.Price,
 		AvailabilityStatus: id.AvailabilityStatus,
