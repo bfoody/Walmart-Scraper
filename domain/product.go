@@ -14,6 +14,7 @@ type ProductLocation struct {
 	ID         string // the entity's unique ID
 	LocationID string // the ID of the product's location
 	URL        string // the URL of the product on the seller's website
+	LocalID    string // the ID used by the seller for the product
 	Slug       string // the slug being use on the seller's website
 	Category   string // the product's category on the seller's website
 }

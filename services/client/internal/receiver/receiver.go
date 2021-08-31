@@ -21,6 +21,7 @@ type Receiver struct {
 	newHubIdentities        chan identity.Server
 	hub                     *identity.Server // the hub that the client is currently connected to
 	conn                    *communication.QueueConnection
+	taskService             *TaskService
 	hubWelcomes             chan communication.HubWelcome
 	taskFulfillmentRequests chan communication.TaskFulfillmentRequest
 	shutdown                chan int
@@ -36,6 +37,7 @@ func New(_identity *identity.Server, logger *zap.Logger, conn *communication.Que
 		newHubIdentities:        make(chan identity.Server, 4),
 		hub:                     nil,
 		conn:                    conn,
+		taskService:             NewTaskService(logger),
 		hubWelcomes:             make(chan communication.HubWelcome, 4),
 		taskFulfillmentRequests: make(chan communication.TaskFulfillmentRequest, 4),
 		shutdown:                make(chan int),
@@ -127,7 +129,39 @@ func (r *Receiver) handleTaskFulfillmentRequest(tfr *communication.TaskFulfillme
 	}
 
 	// TODO: possibly implement a thread pool for this?
-	go runTask()
+	go r.runTask(tfr)
+}
+
+func (r *Receiver) runTask(tfr *communication.TaskFulfillmentRequest) {
+	pi, err := r.taskService.FetchProductInfo(&tfr.ProductLocation)
+	if err != nil {
+		r.log.Error(
+			"couldn't fetch product info, rescheduling to next interval",
+			zap.String("productLocationId", tfr.ProductLocation.ID),
+			zap.Error(err),
+		)
+
+		return
+	}
+
+	ir := communication.InfoRetrieved{
+		SingleReceiverPacket: communication.SingleReceiverPacket{
+			SenderID:   r.identity.ID,
+			ReceiverID: r.hub.ID,
+		},
+		TaskID:      tfr.TaskID,
+		ProductInfo: *pi,
+	}
+
+	err = r.conn.SendMessage(ir)
+	if err != nil {
+		r.log.Error(
+			"couldn't send InfoRetrieved message to hub",
+			zap.String("productLocationId", tfr.ProductLocation.ID),
+			zap.String("hubId", r.hub.ID),
+			zap.Error(err),
+		)
+	}
 }
 
 // switchHub switches the client to communicate with the specified hub identity.
