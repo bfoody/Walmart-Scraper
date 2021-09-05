@@ -19,3 +19,18 @@ func itemDetailsToProductInfo(productLocationID string, productID string, id wal
 		InStock:            id.InStock,
 	}
 }
+
+// itemDetailsToProductLocation converts an ItemDetails to a ProductLocation..
+func itemDetailsToProductLocation(id walmart.ItemDetails) domain.ProductLocation {
+	return domain.ProductLocation{
+		ID:         "",
+		Name:       id.Name,
+		ProductID:  "",
+		LocationID: "",
+		URL:        walmart.ItemDetailsPage(id.Slug, id.ID),
+		LocalID:    id.ID,
+		Slug:       id.Slug,
+		CategoryID: id.CategoryID,
+		Category:   id.Category,
+	}
+}

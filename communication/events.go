@@ -7,15 +7,17 @@ import (
 
 // A QueueConnection wraps an AMQP connection and allows for event handlers to be registered.
 type QueueConnection struct {
-	conn                          *Connection
-	queueName                     string
-	heartbeatHandler              func(heartbeat *Heartbeat)
-	statusUpdateHandler           func(statusUpdate *StatusUpdate)
-	hubWelcomeHandler             func(hubWelcome *HubWelcome)
-	hubWelcomeAckHandler          func(hubWelcomeAck *HubWelcomeAck)
-	goingAwayHandler              func(goingAway *GoingAway)
-	infoRetrievedHandler          func(infoRetrieved *InfoRetrieved)
-	taskFulfillmentRequestHandler func(taskFulfillmentRequest *TaskFulfillmentRequest)
+	conn                           *Connection
+	queueName                      string
+	heartbeatHandler               func(heartbeat *Heartbeat)
+	statusUpdateHandler            func(statusUpdate *StatusUpdate)
+	hubWelcomeHandler              func(hubWelcome *HubWelcome)
+	hubWelcomeAckHandler           func(hubWelcomeAck *HubWelcomeAck)
+	goingAwayHandler               func(goingAway *GoingAway)
+	infoRetrievedHandler           func(infoRetrieved *InfoRetrieved)
+	taskFulfillmentRequestHandler  func(taskFulfillmentRequest *TaskFulfillmentRequest)
+	crawlFulfillmentRequestHandler func(crawlFulfillmentRequest *CrawlFulfillmentRequest)
+	crawlRetrievedHandler          func(crawlRetrieved *CrawlRetrieved)
 }
 
 // NewQueueConnection creates and returns a new QueueConnection.
@@ -88,6 +90,18 @@ func (q *QueueConnection) consumer(channel chan Message) {
 				q.taskFulfillmentRequestHandler(d)
 			}
 			break
+		case "crawlFulfillmentRequest":
+			d := &CrawlFulfillmentRequest{}
+			if err := decoder.Decode(d); err == nil && q.crawlFulfillmentRequestHandler != nil {
+				q.crawlFulfillmentRequestHandler(d)
+			}
+			break
+		case "crawlRetrieved":
+			d := &CrawlRetrieved{}
+			if err := decoder.Decode(d); err == nil && q.crawlRetrievedHandler != nil {
+				q.crawlRetrievedHandler(d)
+			}
+			break
 		}
 	}
 }
@@ -127,6 +141,16 @@ func (q *QueueConnection) RegisterTaskFulfillmentRequest(handler func(taskFulfil
 	q.taskFulfillmentRequestHandler = handler
 }
 
+// RegisterCrawlFulfillmentRequest registers a handler for CrawlFulfillmentRequest messages.
+func (q *QueueConnection) RegisterCrawlFulfillmentRequestHandler(handler func(crawlFulfillmentRequest *CrawlFulfillmentRequest)) {
+	q.crawlFulfillmentRequestHandler = handler
+}
+
+// RegisterCrawlRetrieved registers a handler for CrawlRetrieved messages.
+func (q *QueueConnection) RegisterCrawlRetrievedHandler(handler func(crawlRetrieved *CrawlRetrieved)) {
+	q.crawlRetrievedHandler = handler
+}
+
 // SendMessage sends a message of any supported type to the queue,
 // panicking if an invalid type is sent.
 func (q *QueueConnection) SendMessage(message interface{}) error {
@@ -147,6 +171,10 @@ func (q *QueueConnection) SendMessage(message interface{}) error {
 		typeName = "infoRetrieved"
 	case TaskFulfillmentRequest:
 		typeName = "taskFulfillmentRequest"
+	case CrawlFulfillmentRequest:
+		typeName = "crawlFulfillmentRequest"
+	case CrawlRetrieved:
+		typeName = "crawlRetrieved"
 	}
 
 	if typeName != "" {

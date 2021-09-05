@@ -1,6 +1,7 @@
 package receiver
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/bfoody/Walmart-Scraper/domain"
@@ -63,4 +64,42 @@ func (s *TaskService) FetchProductInfo(productLocation *domain.ProductLocation) 
 	pi := itemDetailsToProductInfo(productLocation.ID, productLocation.ProductID, *id)
 
 	return &pi, nil
+}
+
+// FetchProductRecommendations fetches the recommendations for a single product from the API and returns it as a []ProductLocation.
+func (s *TaskService) FetchProductRecommendations(productLocation *domain.ProductLocation) ([]domain.ProductLocation, error) {
+	// Wait until ratelimiter allows new operations.
+	s.rl.Take()
+
+	var id []walmart.ItemDetails
+	var err error
+
+	for i := 0; i < MaxTries; i++ {
+		id, err = s.client.GetItemRelatedItems(productLocation.LocalID, productLocation.CategoryID, productLocation.Category, productLocation.Name)
+		if err != nil {
+			s.log.Error(
+				"error fetching product recs, retrying in 1 second",
+				zap.Int("attempt", i+1),
+				zap.String("productLocationID", productLocation.ID),
+				zap.Error(err),
+			)
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
+		break
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	pl := []domain.ProductLocation{}
+	for _, i := range id {
+		pl = append(pl, itemDetailsToProductLocation(i))
+	}
+
+	fmt.Println(pl)
+
+	return pl, nil
 }

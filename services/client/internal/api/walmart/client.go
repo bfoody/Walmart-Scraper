@@ -75,7 +75,7 @@ func (c *Client) GetItemDetails(itemSlug, itemID string) (*ItemDetails, error) {
 
 	// Find the JSON payload inside the script tag with the ID of item.
 	name, err := htmlquery.Query(doc, "//script[@id=\"item\"]")
-	if err != nil {
+	if err != nil || name == nil {
 		return nil, api.NewAPIError(resp, "failed to find `name` element", "deserialization_error", err)
 	}
 
@@ -104,7 +104,7 @@ func (c *Client) GetItemDetails(itemSlug, itemID string) (*ItemDetails, error) {
 	}, nil
 }
 
-var SlugRegex = regexp.MustCompile("/\\/ip\\/(.{1,})\\//g")
+var SlugRegex = regexp.MustCompile("\\/ip\\/(.{1,})\\/")
 
 // GetItemRelatedItems scrapes related items for a specific item, returning an array of items.
 func (c *Client) GetItemRelatedItems(itemID, categoryID, categoryPath, itemName string) ([]ItemDetails, error) {
@@ -165,7 +165,7 @@ func (c *Client) GetItemRelatedItems(itemID, categoryID, categoryPath, itemName 
 					continue
 				}
 
-				slug := SlugRegex.FindString(product.ProductURL)
+				slug := SlugRegex.FindStringSubmatch(product.ProductURL)[1]
 
 				items[product.ID.ProductID] = ItemDetails{
 					ID:                 product.ID.ProductID,

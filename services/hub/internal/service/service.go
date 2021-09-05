@@ -14,6 +14,7 @@ type Service struct {
 	productInfoRepository     hub.ProductInfoRepository
 	productLocationRepository hub.ProductLocationRepository
 	scrapeTaskRepository      hub.ScrapeTaskRepository
+	crawlTaskRepository       hub.CrawlTaskRepository
 }
 
 // NewService creates and returns a *Service with the provided dependencies.
@@ -22,12 +23,14 @@ func NewService(
 	productInfoRepository hub.ProductInfoRepository,
 	productLocationRepository hub.ProductLocationRepository,
 	scrapeTaskRepository hub.ScrapeTaskRepository,
+	crawlTaskRepository hub.CrawlTaskRepository,
 ) *Service {
 	return &Service{
 		productRepository,
 		productInfoRepository,
 		productLocationRepository,
 		scrapeTaskRepository,
+		crawlTaskRepository,
 	}
 }
 
@@ -102,4 +105,46 @@ func (s *Service) SaveProductInfo(productInfo domain.ProductInfo) (string, error
 	}
 
 	return s.productInfoRepository.InsertProductInfo(productInfo)
+}
+
+// SaveProduct saves a new Product to the database, returning the ID on success.
+func (s *Service) SaveProduct(product domain.Product) (string, error) {
+	if product.CommonName == "" {
+		return "", errors.New("CommonName must not be null")
+	}
+
+	return s.productRepository.InsertProduct(product)
+}
+
+// SaveProductLocation saves a ProductLocation to the database.
+func (s *Service) SaveProductLocation(productLocation domain.ProductLocation) (string, error) {
+	if productLocation.LocalID == "" {
+		return "", errors.New("LocalID must not be null")
+	}
+
+	if productLocation.LocationID == "" {
+		return "", errors.New("LocationID must not be null")
+	}
+
+	if productLocation.ProductID == "" {
+		return "", errors.New("ProductID must not be null")
+	}
+
+	return s.productLocationRepository.InsertProductLocation(productLocation)
+}
+
+// IsCrawled returns true if an item was already crawled.
+func (s *Service) IsCrawled(productLocationId string) (bool, error) {
+	_, err := s.crawlTaskRepository.FindCrawlTaskByProductLocationID(productLocationId)
+	return err == nil, nil
+}
+
+// SaveCrawlTask saves a crawl task with the provided ID.
+func (s *Service) SaveCrawlTask(productLocationId string) (string, error) {
+	return s.crawlTaskRepository.InsertCrawlTask(domain.CrawlTask{
+		ID:                      "",
+		CreatedAt:               time.Now(),
+		Completed:               true,
+		OriginProductLocationID: productLocationId,
+	})
 }

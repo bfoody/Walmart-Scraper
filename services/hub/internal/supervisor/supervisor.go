@@ -32,11 +32,13 @@ type Supervisor struct {
 	heartbeats     chan communication.Heartbeat
 	goingAways     chan communication.GoingAway
 	infoRetrieved  chan communication.InfoRetrieved
+	crawlRetrieved chan communication.CrawlRetrieved
 	serverDown     chan identity.Server // any servers sent through this channel will be considered offline
 	shutdown       chan int
 	log            *zap.Logger
 	taskManager    *TaskManager
 	roundRobin     *RoundRobin
+	crawler        *Crawler
 }
 
 // New creates and returns a new *Supervisor.
@@ -54,6 +56,7 @@ func New(_identity *identity.Server, logger *zap.Logger, conn *communication.Que
 		heartbeats:     make(chan communication.Heartbeat, 4),
 		goingAways:     make(chan communication.GoingAway, 4),
 		infoRetrieved:  make(chan communication.InfoRetrieved, 4),
+		crawlRetrieved: make(chan communication.CrawlRetrieved, 4),
 		serverDown:     make(chan identity.Server, 4),
 		shutdown:       make(chan int),
 		log:            logger,
@@ -64,10 +67,13 @@ func New(_identity *identity.Server, logger *zap.Logger, conn *communication.Que
 
 // Start starts the Supervisor.
 func (s *Supervisor) Start() error {
+	s.crawler = NewCrawler(s.service, s.log, s.crawlCallback, s.taskManager)
+
 	s.conn.RegisterStatusUpdateHandler(s.pipeStatusUpdate)
 	s.conn.RegisterHeartbeatHandler(s.pipeHeartbeat)
 	s.conn.RegisterGoingAwayHandler(s.pipeGoingAway)
 	s.conn.RegisterInfoRetrievedHandler(s.pipeInfoRetrieved)
+	s.conn.RegisterCrawlRetrievedHandler(s.pipeCrawlRetrieved)
 
 	err := s.taskManager.Initialize()
 	if err != nil {
@@ -87,6 +93,17 @@ func (s *Supervisor) taskCallback(task domain.ScrapeTask) {
 		}
 
 		go s.distributeTask(task)
+	}()
+}
+
+// crawlCallback is called by the Crawler when a task is due to be dispatched.
+func (s *Supervisor) crawlCallback(productLocationID string) {
+	go func() {
+		for len(s.serverMap) < 1 {
+			time.Sleep(5 * time.Second)
+		}
+
+		go s.distributeCrawlTask(productLocationID)
 	}()
 }
 
@@ -129,6 +146,44 @@ func (s *Supervisor) distributeTask(task domain.ScrapeTask) {
 	}()
 }
 
+// distributeCrawlTask distributes a task to a client server in a round-robin fashion.
+func (s *Supervisor) distributeCrawlTask(productLocationID string) {
+	s.serverMapMutex.RLock()
+	defer s.serverMapMutex.RUnlock()
+
+	// Create an array of server IDs to choose from.
+	serverIDArray := []string{}
+	for id := range s.serverMap {
+		serverIDArray = append(serverIDArray, id)
+	}
+
+	// Get the ID of the server chosen by round-robin.
+	idx := s.roundRobin.Next(uint(len(serverIDArray)))
+	id := serverIDArray[idx]
+
+	go func() {
+		// TODO: handle error
+		pl, err := s.service.GetProductLocationByID(productLocationID)
+		if err != nil {
+			s.log.Error("Error getting ProductLocation for CrawlFulfillmentRequest", zap.String("productLocationID", productLocationID), zap.Error(err))
+			return
+		}
+
+		req := communication.CrawlFulfillmentRequest{
+			SingleReceiverPacket: communication.SingleReceiverPacket{
+				SenderID:   s.identity.ID,
+				ReceiverID: id,
+			},
+			ProductLocation: *pl,
+		}
+
+		err = s.conn.SendMessage(req)
+		if err != nil {
+			s.log.Error("Error sending CrawlFulfillmentRequest to server", zap.String("serverID", id), zap.Error(err))
+		}
+	}()
+}
+
 // Shutdown shuts down the Supervisor.
 func (s *Supervisor) Shutdown() error {
 	s.shutdown <- 1
@@ -155,6 +210,11 @@ func (s *Supervisor) pipeInfoRetrieved(ir *communication.InfoRetrieved) {
 	s.infoRetrieved <- *ir
 }
 
+// pipeCrawlRetrieved pipes a CrawlRetrieved into the supervisor.
+func (s *Supervisor) pipeCrawlRetrieved(cr *communication.CrawlRetrieved) {
+	s.crawlRetrieved <- *cr
+}
+
 func (s *Supervisor) loop() {
 	for {
 		select {
@@ -166,6 +226,8 @@ func (s *Supervisor) loop() {
 			go s.handleGoingAway(&ga)
 		case ir := <-s.infoRetrieved:
 			go s.handleInfoRetrieved(&ir)
+		case cr := <-s.crawlRetrieved:
+			go s.crawler.PipeRetrieval(&cr)
 		case server := <-s.serverDown:
 			s.terminateServer(&server)
 		case <-s.shutdown:
@@ -280,6 +342,8 @@ func (s *Supervisor) handleInfoRetrieved(ir *communication.InfoRetrieved) {
 	}
 
 	s.log.Debug("product info saved for task", zap.String("taskId", ir.TaskID), zap.String("productInfoId", id))
+
+	go s.crawler.AttemptCrawl(ir.ProductInfo.ProductLocationID)
 }
 
 // terminateServer removes a single server from the supervisor and shuts down all listeners

@@ -11,12 +11,14 @@ type Product struct {
 // A ProductLocation describes a location where a product is being sold, used to
 // track different sellers of a product.
 type ProductLocation struct {
-	ID         string `db:"id"` // the entity's unique ID
+	ID         string `db:"id"`   // the entity's unique ID
+	Name       string `db:"name"` // the entity's local name
 	ProductID  string `db:"product_id"`
 	LocationID string `db:"location_id"` // the ID of the product's location
 	URL        string `db:"url"`         // the URL of the product on the seller's website
 	LocalID    string `db:"local_id"`    // the ID used by the seller for the product
 	Slug       string `db:"slug"`        // the slug being use on the seller's website
+	CategoryID string `db:"category_id"` // the product's category ID
 	Category   string `db:"category"`    // the product's category on the seller's website
 }
 
