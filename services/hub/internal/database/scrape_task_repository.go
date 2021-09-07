@@ -24,7 +24,7 @@ func NewScrapeTaskRepository(db *sqlx.DB) *ScrapeTaskRepository {
 
 // FindScrapeTaskByID finds a single scrape task by ID, returning an error if nothing is found.
 func (r *ScrapeTaskRepository) FindScrapeTaskByID(id string) (*domain.ScrapeTask, error) {
-	var scrapeTask *domain.ScrapeTask
+	scrapeTask := &domain.ScrapeTask{}
 	err := r.db.Get(scrapeTask, "SELECT * FROM scrape_tasks WHERE id=$1 ORDER BY scheduled_for", id)
 	if err != nil {
 		return nil, err
@@ -35,7 +35,7 @@ func (r *ScrapeTaskRepository) FindScrapeTaskByID(id string) (*domain.ScrapeTask
 
 // FindUpcomingScrapeTasks returns due tasks closest to the current time, using the supplied
 // limit.
-func (r *ScrapeTaskRepository) FindUpcomingScrapeTasks(limit uint8) ([]domain.ScrapeTask, error) {
+func (r *ScrapeTaskRepository) FindUpcomingScrapeTasks(limit uint16) ([]domain.ScrapeTask, error) {
 	var scrapeTasks []domain.ScrapeTask
 	err := r.db.Select(&scrapeTasks, fmt.Sprintf("SELECT * FROM scrape_tasks WHERE completed=FALSE ORDER BY scheduled_for LIMIT %d", limit))
 	if err != nil {
@@ -84,7 +84,7 @@ func (r *ScrapeTaskRepository) FindScrapeTasksByLocationID(id string) ([]domain.
 // InsertScrapeTask inserts a single scrape task into the database, returning the ID on success.
 func (r *ScrapeTaskRepository) InsertScrapeTask(scrapeTask domain.ScrapeTask) (string, error) {
 	id := uuid.Generate()
-	_, err := r.db.Exec("INSERT INTO scrape_tasks (id, completed, timestamp, scheduled_for, product_location_id, repeat, interval) VALUES ($1, $2, $3, $4, $5, $6, $7)", id, scrapeTask.Completed, scrapeTask.Timestamp, scrapeTask.ScheduledFor, scrapeTask.ProductLocationID, scrapeTask.Repeat, scrapeTask.Interval)
+	_, err := r.db.Exec("INSERT INTO scrape_tasks (id, completed, created_at, scheduled_for, product_location_id, repeat, interval) VALUES ($1, $2, $3, $4, $5, $6, $7)", id, scrapeTask.Completed, scrapeTask.CreatedAt, scrapeTask.ScheduledFor, scrapeTask.ProductLocationID, scrapeTask.Repeat, scrapeTask.Interval)
 	if err != nil {
 		return "", err
 	}
@@ -94,7 +94,7 @@ func (r *ScrapeTaskRepository) InsertScrapeTask(scrapeTask domain.ScrapeTask) (s
 
 // UpdateScrapeTask updates a single scrape task in the database by ID.
 func (r *ScrapeTaskRepository) UpdateScrapeTask(scrapeTask domain.ScrapeTask) error {
-	_, err := r.db.Exec("UPDATE scrape_tasks SET completed=$1, timestamp=$2, scheduled_for=$3, product_location_id=$4, repeat=$5, interval=$6 WHERE id=$7", scrapeTask.Completed, scrapeTask.Timestamp, scrapeTask.ScheduledFor, scrapeTask.ProductLocationID, scrapeTask.Repeat, scrapeTask.Interval, scrapeTask.ID)
+	_, err := r.db.Exec("UPDATE scrape_tasks SET completed=$1, created_at=$2, scheduled_for=$3, product_location_id=$4, repeat=$5, interval=$6 WHERE id=$7", scrapeTask.Completed, scrapeTask.CreatedAt, scrapeTask.ScheduledFor, scrapeTask.ProductLocationID, scrapeTask.Repeat, scrapeTask.Interval, scrapeTask.ID)
 	if err != nil {
 		return err
 	}

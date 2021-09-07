@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS products (
+	id UUID PRIMARY KEY,
+	common_name TEXT NOT NULL
+);

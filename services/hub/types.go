@@ -59,7 +59,7 @@ type ScrapeTaskRepository interface {
 	FindScrapeTaskByID(id string) (*domain.ScrapeTask, error)
 	// FindUpcomingScrapeTasks returns due tasks closest to the current time, using the supplied
 	// limit.
-	FindUpcomingScrapeTasks(limit uint8) ([]domain.ScrapeTask, error)
+	FindUpcomingScrapeTasks(limit uint16) ([]domain.ScrapeTask, error)
 	// FindScrapeTasksByProductLocationID finds scrape tasks by ProductLocationID, returning a
 	// blank array if nothing is found.
 	FindScrapeTasksByProductLocationID(id string) ([]domain.ScrapeTask, error)
@@ -75,4 +75,41 @@ type ScrapeTaskRepository interface {
 	UpdateScrapeTask(scrapeTask domain.ScrapeTask) error
 	// DeleteScrapeTask deletes a single scrape task by ID.
 	DeleteScrapeTask(id string) error
+}
+
+// A CrawlTaskRepository provides methods for interfacing with CrawlTasks
+// stored in the database.
+type CrawlTaskRepository interface {
+	// FindCrawlTaskByID finds a single crawl task by ID, returning an error if nothing is found.
+	FindCrawlTaskByID(id string) (*domain.CrawlTask, error)
+	// FindCrawlTaskByID finds a single crawl task by ProductLocation ID, returning an error if nothing is found.
+	FindCrawlTaskByProductLocationID(id string) (*domain.CrawlTask, error)
+	// InsertCrawlTask inserts a single crawl task into the database, returning the ID on success.
+	InsertCrawlTask(crawlTask domain.CrawlTask) (string, error)
+	// UpdateCrawlTask updates a single crawl task in the database by ID.
+	UpdateCrawlTask(crawlTask domain.CrawlTask) error
+	// DeleteCrawlTask deletes a single crawl task by ID.
+	DeleteCrawlTask(id string) error
+}
+
+// A Service provides abstractions for interacting with product and task data in the database.
+type Service interface {
+	// ResolveTask marks the task with the provided ID as completed.
+	ResolveTask(id string, newCallback func(st domain.ScrapeTask)) error
+	// SaveProductInfo saves a new ProductInfo to the database, returning the ID on success.
+	SaveProductInfo(productInfo domain.ProductInfo) (string, error)
+	// SaveProduct saves a new Product to the database, returning the ID on success.
+	SaveProduct(product domain.Product) (string, error)
+	// CreateTask creates a new task using the provided object.
+	CreateTask(scrapeTask domain.ScrapeTask) (string, error)
+	// FetchUpcomingTasks fetches newest tasks with a limit.
+	FetchUpcomingTasks(limit uint16) ([]domain.ScrapeTask, error)
+	// GetProductLocationByID gets a single ProductLocation using the ID.
+	GetProductLocationByID(id string) (*domain.ProductLocation, error)
+	// SaveProductLocation saves a ProductLocation to the database.
+	SaveProductLocation(productLocation domain.ProductLocation) (string, error)
+	// IsCrawled returns true if an item was already crawled.
+	IsCrawled(productLocationId string) (bool, error)
+	// SaveCrawlTask saves a crawl task with the provided ID.
+	SaveCrawlTask(productLocationId string) (string, error)
 }

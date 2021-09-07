@@ -16,29 +16,35 @@ const (
 
 // A Receiver processes and responds to messages from the hub server.
 type Receiver struct {
-	identity         *identity.Server
-	heartbeats       chan communication.Heartbeat
-	newHubIdentities chan identity.Server
-	hub              *identity.Server // the hub that the client is currently connected to
-	conn             *communication.QueueConnection
-	hubWelcomes      chan communication.HubWelcome
-	shutdown         chan int
-	shutdownWg       *sync.WaitGroup
-	log              *zap.Logger
+	identity                 *identity.Server
+	heartbeats               chan communication.Heartbeat
+	newHubIdentities         chan identity.Server
+	hub                      *identity.Server // the hub that the client is currently connected to
+	conn                     *communication.QueueConnection
+	taskService              *TaskService
+	hubWelcomes              chan communication.HubWelcome
+	taskFulfillmentRequests  chan communication.TaskFulfillmentRequest
+	crawlFulfillmentRequests chan communication.CrawlFulfillmentRequest
+	shutdown                 chan int
+	shutdownWg               *sync.WaitGroup
+	log                      *zap.Logger
 }
 
 // New creates and returns a new *Receiver.
 func New(_identity *identity.Server, logger *zap.Logger, conn *communication.QueueConnection) *Receiver {
 	return &Receiver{
-		identity:         _identity,
-		heartbeats:       make(chan communication.Heartbeat),
-		newHubIdentities: make(chan identity.Server, 4),
-		hub:              nil,
-		conn:             conn,
-		hubWelcomes:      make(chan communication.HubWelcome, 4),
-		shutdown:         make(chan int),
-		shutdownWg:       &sync.WaitGroup{},
-		log:              logger,
+		identity:                 _identity,
+		heartbeats:               make(chan communication.Heartbeat),
+		newHubIdentities:         make(chan identity.Server, 4),
+		hub:                      nil,
+		conn:                     conn,
+		taskService:              NewTaskService(logger),
+		hubWelcomes:              make(chan communication.HubWelcome, 4),
+		taskFulfillmentRequests:  make(chan communication.TaskFulfillmentRequest, 4),
+		crawlFulfillmentRequests: make(chan communication.CrawlFulfillmentRequest, 4),
+		shutdown:                 make(chan int),
+		shutdownWg:               &sync.WaitGroup{},
+		log:                      logger,
 	}
 }
 
@@ -46,6 +52,8 @@ func New(_identity *identity.Server, logger *zap.Logger, conn *communication.Que
 func (r *Receiver) Start() error {
 	r.conn.RegisterHubWelcomeHandler(r.pipeHubWelcome)
 	r.conn.RegisterHeartbeatHandler(r.pipeHeartbeat)
+	r.conn.RegisterTaskFulfillmentRequest(r.pipeTaskFulfillmentRequest)
+	r.conn.RegisterCrawlFulfillmentRequestHandler(r.pipeCrawlFulfillmentRequest)
 
 	go r.loop()
 	return nil
@@ -69,6 +77,16 @@ func (r *Receiver) pipeHeartbeat(hb *communication.Heartbeat) {
 	r.heartbeats <- *hb
 }
 
+// pipeTaskFulfillmentRequest pipes a TaskFulfillmentRequest into the receiver.
+func (r *Receiver) pipeTaskFulfillmentRequest(tfr *communication.TaskFulfillmentRequest) {
+	r.taskFulfillmentRequests <- *tfr
+}
+
+// pipeCrawlFulfillmentRequest pipes a CrawlFulfillmentRequest into the receiver.
+func (r *Receiver) pipeCrawlFulfillmentRequest(cfr *communication.CrawlFulfillmentRequest) {
+	r.crawlFulfillmentRequests <- *cfr
+}
+
 func (r *Receiver) loop() {
 	for {
 		select {
@@ -78,6 +96,10 @@ func (r *Receiver) loop() {
 			r.switchHub(&hub)
 		case hb := <-r.heartbeats:
 			r.handleHeartbeat(&hb)
+		case tfr := <-r.taskFulfillmentRequests:
+			r.handleTaskFulfillmentRequest(&tfr)
+		case cfr := <-r.crawlFulfillmentRequests:
+			r.handleCrawlFulfillmentRequest(&cfr)
 		case <-r.shutdown:
 			r.cleanup()
 			return
@@ -108,6 +130,90 @@ func (r *Receiver) handleHeartbeat(hb *communication.Heartbeat) {
 	}
 
 	r.log.Debug(fmt.Sprintf("sending heartbeat to hub %s", hb.SenderID))
+}
+
+func (r *Receiver) handleTaskFulfillmentRequest(tfr *communication.TaskFulfillmentRequest) {
+	// TODO: check receiver ID in a better way
+	if tfr.ReceiverID != r.identity.ID {
+		return
+	}
+
+	// TODO: possibly implement a thread pool for this?
+	go r.runTask(tfr)
+}
+
+func (r *Receiver) handleCrawlFulfillmentRequest(cfr *communication.CrawlFulfillmentRequest) {
+	// TODO: check receiver ID in a better way
+	if cfr.ReceiverID != r.identity.ID {
+		return
+	}
+
+	// TODO: possibly implement a thread pool for this?
+	go r.runCrawl(cfr)
+}
+
+func (r *Receiver) runTask(tfr *communication.TaskFulfillmentRequest) {
+	pi, err := r.taskService.FetchProductInfo(&tfr.ProductLocation)
+	if err != nil {
+		r.log.Error(
+			"couldn't fetch product info, rescheduling to next interval",
+			zap.String("productLocationId", tfr.ProductLocation.ID),
+			zap.Error(err),
+		)
+
+		return
+	}
+
+	ir := communication.InfoRetrieved{
+		SingleReceiverPacket: communication.SingleReceiverPacket{
+			SenderID:   r.identity.ID,
+			ReceiverID: r.hub.ID,
+		},
+		TaskID:      tfr.TaskID,
+		ProductInfo: *pi,
+	}
+
+	err = r.conn.SendMessage(ir)
+	if err != nil {
+		r.log.Error(
+			"couldn't send InfoRetrieved message to hub",
+			zap.String("productLocationId", tfr.ProductLocation.ID),
+			zap.String("hubId", r.hub.ID),
+			zap.Error(err),
+		)
+	}
+}
+
+func (r *Receiver) runCrawl(cfr *communication.CrawlFulfillmentRequest) {
+	id, err := r.taskService.FetchProductRecommendations(&cfr.ProductLocation)
+	if err != nil {
+		r.log.Error(
+			"couldn't fetch product recommendations, rescheduling to next interval",
+			zap.String("productLocationId", cfr.ProductLocation.ID),
+			zap.Error(err),
+		)
+
+		return
+	}
+
+	ir := communication.CrawlRetrieved{
+		SingleReceiverPacket: communication.SingleReceiverPacket{
+			SenderID:   r.identity.ID,
+			ReceiverID: r.hub.ID,
+		},
+		ProductLocationID: cfr.ProductLocation.ID,
+		Recommendations:   id,
+	}
+
+	err = r.conn.SendMessage(ir)
+	if err != nil {
+		r.log.Error(
+			"couldn't send CrawlRetrieved message to hub",
+			zap.String("productLocationId", cfr.ProductLocation.ID),
+			zap.String("hubId", r.hub.ID),
+			zap.Error(err),
+		)
+	}
 }
 
 // switchHub switches the client to communicate with the specified hub identity.

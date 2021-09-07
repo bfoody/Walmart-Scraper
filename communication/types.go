@@ -1,5 +1,9 @@
 package communication
 
+import (
+	"github.com/bfoody/Walmart-Scraper/domain"
+)
+
 // A SingleReceiverPacket is a message meant to be received by a single client.
 type SingleReceiverPacket struct {
 	SenderID   string
@@ -39,4 +43,31 @@ type HubWelcomeAck struct {
 type GoingAway struct {
 	SingleReceiverPacket
 	Reason string
+}
+
+// An InfoRetrieved is sent by a client after fetching product info for a hub. The `ID` field in the ProductInfo will be blank.
+type InfoRetrieved struct {
+	SingleReceiverPacket
+	TaskID      string
+	ProductInfo domain.ProductInfo
+}
+
+// A TaskFTaskFulfillmentRequest is sent by a hub to a client as a request for a task to be executed and fulfilled.
+type TaskFulfillmentRequest struct {
+	SingleReceiverPacket
+	TaskID          string
+	ProductLocation domain.ProductLocation
+}
+
+// A CrawlFulfillmentRequest is sent by a hub to a client as a request for a product to have its recommendations scraped.
+type CrawlFulfillmentRequest struct {
+	SingleReceiverPacket
+	ProductLocation domain.ProductLocation
+}
+
+// A CrawlRetrieved is sent by a client to the hub when a crawl is completed.
+type CrawlRetrieved struct {
+	SingleReceiverPacket
+	ProductLocationID string
+	Recommendations   []domain.ProductLocation
 }

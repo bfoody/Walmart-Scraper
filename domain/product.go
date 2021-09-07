@@ -11,18 +11,22 @@ type Product struct {
 // A ProductLocation describes a location where a product is being sold, used to
 // track different sellers of a product.
 type ProductLocation struct {
-	ID         string // the entity's unique ID
-	LocationID string // the ID of the product's location
-	URL        string // the URL of the product on the seller's website
-	Slug       string // the slug being use on the seller's website
-	Category   string // the product's category on the seller's website
+	ID         string `db:"id"`   // the entity's unique ID
+	Name       string `db:"name"` // the entity's local name
+	ProductID  string `db:"product_id"`
+	LocationID string `db:"location_id"` // the ID of the product's location
+	URL        string `db:"url"`         // the URL of the product on the seller's website
+	LocalID    string `db:"local_id"`    // the ID used by the seller for the product
+	Slug       string `db:"slug"`        // the slug being use on the seller's website
+	CategoryID string `db:"category_id"` // the product's category ID
+	Category   string `db:"category"`    // the product's category on the seller's website
 }
 
 // A ProductInfo represents a single crawl of a product and the details scraped
 // from the crawl.
 type ProductInfo struct {
 	ID                 string    // the entity's unique ID
-	Timestamp          time.Time // the time at which the info was crawled/logged
+	CreatedAt          time.Time // the time at which the info was crawled/logged
 	ProductID          string    // the product's ID
 	ProductLocationID  string    // the product-location ID
 	Price              float32   // the current price of the item in USD

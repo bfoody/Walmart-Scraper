@@ -51,8 +51,9 @@ func main() {
 	productInfoRepository := database.NewProductInfoRepository(db)
 	productLocationRepository := database.NewProductLocationRepository(db)
 	scrapeTaskRepository := database.NewScrapeTaskRepository(db)
+	crawlTaskRepository := database.NewCrawlTaskRepository(db)
 
-	_ = service.NewService(productRepository, productInfoRepository, productLocationRepository, scrapeTaskRepository)
+	service := service.NewService(productRepository, productInfoRepository, productLocationRepository, scrapeTaskRepository, crawlTaskRepository)
 
 	conn, err := communication.ConnectAMQP(config.AMQPURL)
 	if err != nil {
@@ -61,7 +62,7 @@ func main() {
 
 	e := communication.NewQueueConnection(conn, config.AMQPExchange)
 
-	supervisor := supervisor.New(identity, log, e)
+	supervisor := supervisor.New(identity, log, e, service)
 
 	err = e.Consume()
 	if err != nil {

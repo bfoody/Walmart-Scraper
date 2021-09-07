@@ -21,7 +21,7 @@ func NewProductLocationRepository(db *sqlx.DB) *ProductLocationRepository {
 // FindProductLocationByID finds a single product location by ID, returning an error
 // if nothing is found.
 func (r *ProductLocationRepository) FindProductLocationByID(id string) (*domain.ProductLocation, error) {
-	var productLocation *domain.ProductLocation
+	productLocation := &domain.ProductLocation{}
 	err := r.db.Get(productLocation, "SELECT * FROM product_locations WHERE id=$1", id)
 	if err != nil {
 		return nil, err
@@ -70,7 +70,7 @@ func (r *ProductLocationRepository) FindProductLocationByProductAndLocationID(pr
 // returning the ID on success.
 func (r *ProductLocationRepository) InsertProductLocation(productLocation domain.ProductLocation) (string, error) {
 	id := uuid.Generate()
-	_, err := r.db.Exec("INSERT INTO product_locations (id, location_id, url, slug, category) VALUES ($1, $2, $3, $4, $5)", id, productLocation.LocationID, productLocation.URL, productLocation.Slug, productLocation.Category)
+	_, err := r.db.Exec("INSERT INTO product_locations (id, name, location_id, product_id, local_id, url, slug, category_id, category) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)", id, productLocation.Name, productLocation.LocationID, productLocation.ProductID, productLocation.LocalID, productLocation.URL, productLocation.Slug, productLocation.CategoryID, productLocation.Category)
 	if err != nil {
 		return "", err
 	}

@@ -7,11 +7,12 @@ require (
 	github.com/google/uuid v1.2.0
 	github.com/jmoiron/sqlx v1.3.4
 	github.com/joho/godotenv v1.3.0
-	github.com/lib/pq v1.2.0
+	github.com/lib/pq v1.8.0
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/streadway/amqp v1.0.0
+	go.uber.org/ratelimit v0.2.0
 	go.uber.org/zap v1.16.0
-	golang.org/x/net v0.0.0-20210226172049-e18ecbb05110 // indirect
-	golang.org/x/sys v0.0.0-20210403161142-5e06dd20ab57 // indirect
-	golang.org/x/tools v0.1.0 // indirect
+	google.golang.org/api v0.55.0
 	gopkg.in/yaml.v2 v2.4.0 // indirect
+	honnef.co/go/tools v0.0.1-2020.1.4 // indirect
 )

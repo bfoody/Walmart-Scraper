@@ -7,6 +7,7 @@ type ItemDetails struct {
 	Slug               string  // the item's slug
 	Name               string  // name of the item
 	Category           string  // the category path for the item, separated by '/'
+	CategoryID         string  // the id of the category path, separated by ':'
 	Price              float32 // the current price of the item in USD
 	AvailabilityStatus string  // the availability of the item, eg. "IN_STOCK"
 	InStock            bool    // whether or not the item is in stock (AvailabilityStatus but as a boolean)
