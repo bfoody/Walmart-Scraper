@@ -12,6 +12,8 @@ import (
 type Service struct {
 	productRepository         hub.ProductRepository
 	productInfoRepository     hub.ProductInfoRepository
+	productInfoDiffRepository hub.ProductInfoDiffRepository
+	averageSelloutRepository  hub.AverageSelloutRepository
 	productLocationRepository hub.ProductLocationRepository
 	scrapeTaskRepository      hub.ScrapeTaskRepository
 	crawlTaskRepository       hub.CrawlTaskRepository
@@ -21,6 +23,8 @@ type Service struct {
 func NewService(
 	productRepository hub.ProductRepository,
 	productInfoRepository hub.ProductInfoRepository,
+	productInfoDiffRepository hub.ProductInfoDiffRepository,
+	averageSelloutRepository hub.AverageSelloutRepository,
 	productLocationRepository hub.ProductLocationRepository,
 	scrapeTaskRepository hub.ScrapeTaskRepository,
 	crawlTaskRepository hub.CrawlTaskRepository,
@@ -28,6 +32,8 @@ func NewService(
 	return &Service{
 		productRepository,
 		productInfoRepository,
+		productInfoDiffRepository,
+		averageSelloutRepository,
 		productLocationRepository,
 		scrapeTaskRepository,
 		crawlTaskRepository,
@@ -104,7 +110,72 @@ func (s *Service) SaveProductInfo(productInfo domain.ProductInfo) (string, error
 		return "", errors.New("AvailabilityStatus must not be null")
 	}
 
-	return s.productInfoRepository.InsertProductInfo(productInfo)
+	id, err := s.productInfoRepository.InsertProductInfo(productInfo)
+	if err != nil {
+		return "", err
+	}
+
+	productInfo.ID = id
+	go s.runStatistics(productInfo)
+
+	return id, nil
+}
+
+// runStatistics calculates and saves all statistic information calculated
+// after a ProductInfo being saved.
+func (s *Service) runStatistics(productInfo domain.ProductInfo) error {
+	lastProductInfos, err := s.productInfoRepository.FindProductInfosByProductID(productInfo.ProductID, 2)
+	if err != nil {
+		return err
+	}
+
+	if len(lastProductInfos) < 2 {
+		return errors.New("not enough product infos to calculate diff")
+	}
+
+	// Get the ProductInfo before the one that was just saved.
+	lastProductInfo := lastProductInfos[1]
+
+	if lastProductInfo.InStock == productInfo.InStock {
+		return nil
+	}
+
+	pid := domain.ProductInfoDiff{
+		ID:                "",
+		CreatedAt:         time.Now(),
+		ProductID:         productInfo.ProductID,
+		ProductLocationID: productInfo.ProductLocationID,
+		OldTimestamp:      lastProductInfo.CreatedAt,
+		NewTimestamp:      productInfo.CreatedAt,
+		OldProductInfoID:  lastProductInfo.ID,
+		NewProductInfoID:  productInfo.ID,
+	}
+	_, err = s.productInfoDiffRepository.InsertProductInfoDiff(pid)
+	if err != nil {
+		return err
+	}
+
+	// Return if the product did not change from in stock to out of stock,
+	// nothing more to do in that case.
+	if !(lastProductInfo.InStock && !productInfo.InStock) {
+		return nil
+	}
+
+	lastAverageSellout, err := s.averageSelloutRepository.FindAverageSelloutByProductID(productInfo.ProductID)
+	if err != nil {
+		return err
+	}
+
+	delta := productInfo.CreatedAt.Sub(lastProductInfo.CreatedAt)
+	sum := int64(lastAverageSellout.AverageAvailabilityDuration + delta)
+	n := lastAverageSellout.AveragedCount + 1
+	average := time.Duration(sum / n)
+
+	lastAverageSellout.UpdatedAt = time.Now()
+	lastAverageSellout.AverageAvailabilityDuration = average
+	lastAverageSellout.AveragedCount = n
+
+	return s.averageSelloutRepository.UpdateAverageSellout(*lastAverageSellout)
 }
 
 // SaveProduct saves a new Product to the database, returning the ID on success.

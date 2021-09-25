@@ -30,6 +30,17 @@ func (r *ProductInfoRepository) FindProductInfoByID(id string) (*domain.ProductI
 	return productInfo, nil
 }
 
+// FindProductInfosByProductID finds ProductInfos by Product ID, returning a blank array if nothing is found.
+func (r *ProductInfoRepository) FindProductInfosByProductID(id string, limit int) ([]domain.ProductInfo, error) {
+	var productInfos []domain.ProductInfo
+	err := r.db.Select(&productInfos, "SELECT * FROM product_infos WHERE product_id=$1 LIMIT $2 ORDER BY created_at DESC", id, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	return productInfos, nil
+}
+
 // InsertProductInfo inserts a single product into the database, returning the ID on success.
 func (r *ProductInfoRepository) InsertProductInfo(productInfo domain.ProductInfo) (string, error) {
 	id := uuid.Generate()

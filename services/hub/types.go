@@ -44,6 +44,8 @@ type ProductLocationRepository interface {
 type ProductInfoRepository interface {
 	// FindProductInfoByID finds a single product info by ID, returning an error if nothing is found.
 	FindProductInfoByID(id string) (*domain.ProductInfo, error)
+	// FindProductInfosByProductID finds ProductInfos by Product ID, returning a blank array if nothing is found.
+	FindProductInfosByProductID(id string, limit int) ([]domain.ProductInfo, error)
 	// InsertProductInfo inserts a single product into the database, returning the ID on success.
 	InsertProductInfo(productInfo domain.ProductInfo) (string, error)
 	// UpdateProductInfo updates a single product info in the database by ID.
@@ -90,6 +92,46 @@ type CrawlTaskRepository interface {
 	UpdateCrawlTask(crawlTask domain.CrawlTask) error
 	// DeleteCrawlTask deletes a single crawl task by ID.
 	DeleteCrawlTask(id string) error
+}
+
+// A ProductInfoDiffRepository provides methods for interfacing with ProductInfoDiffs
+// stored in the database.
+type ProductInfoDiffRepository interface {
+	// FindProductInfoDiffByID finds a single ProductInfoDiff by ID, returning an error if nothing
+	// is found.
+	FindProductInfoDiffByID(id string) (*domain.ProductInfoDiff, error)
+	// FindProductInfoDiffsByProductID finds ProductInfoDiffs by Product ID, returning
+	// a blank array if nothing is found.
+	FindProductInfoDiffsByProductID(id string) ([]domain.ProductInfoDiff, error)
+	// FindProductInfoDiffsByProductLocationID finds ProductInfoDiffs by ProductLocation ID, returning
+	// a blank array if nothing is found.
+	FindProductInfoDiffsByProductLocationID(id string) ([]domain.ProductInfoDiff, error)
+	// InsertProductInfoDiff inserts a ProductInfoDiff into the database, returning the ID on success.
+	InsertProductInfoDiff(productInfoDiff domain.ProductInfoDiff) (string, error)
+	// UpdateProductInfoDiff updates a ProductInfoDiff in the database by ID.
+	UpdateProductInfoDiff(productInfoDiff domain.ProductInfoDiff) error
+	// DeleteProductInfoDiff deletes a ProductInfoDiff by ID.
+	DeleteProductInfoDiff(id string) error
+}
+
+// An AverageSelloutRepository provides methods for interfacing with
+// AverageSellouts in the database.
+type AverageSelloutRepository interface {
+	// FindAverageSelloutByID finds a single AverageSellout by ID, returning an error if nothing
+	// is found.
+	FindAverageSelloutByID(id string) (*domain.AverageSellout, error)
+	// FindAverageSelloutByProductID finds a single AverageSellout by Product ID, returning an error if nothing
+	// is found.
+	FindAverageSelloutByProductID(id string) (*domain.AverageSellout, error)
+	// FindAverageSelloutsByProductLocationID finds AverageSellouts by ProductLocation ID, returning
+	// a blank array if nothing is found.
+	FindAverageSelloutsByProductLocationID(id string) ([]domain.AverageSellout, error)
+	// InsertAverageSellout inserts a AverageSellout into the database, returning the ID on success.
+	InsertAverageSellout(averageSellout domain.AverageSellout) (string, error)
+	// UpdateAverageSellout updates a AverageSellout in the database by ID.
+	UpdateAverageSellout(averageSellout domain.AverageSellout) error
+	// DeleteAverageSellout deletes a AverageSellout by ID.
+	DeleteAverageSellout(id string) error
 }
 
 // A Service provides abstractions for interacting with product and task data in the database.

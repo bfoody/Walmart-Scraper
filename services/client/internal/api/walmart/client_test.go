@@ -14,7 +14,7 @@ const (
 // TestGetItemDetails tests the GetItemDetails scraping method.
 func TestGetItemDetails(t *testing.T) {
 	c := walmart.NewClient(api.NewHTTPClient())
-	item, err := c.GetItemDetails("onn-32-Class-HD-720P-Roku-Smart-LED-TV-100012589", "314022535")
+	item, err := c.GetItemDetails("Sony-77-Class-XBR77A9G-4K-UHD-OLED-Android-Smart-TV-HDR-BRAVIA-A9G-Series", "646157042")
 	if err != nil {
 		t.Fatal(err)
 	}
